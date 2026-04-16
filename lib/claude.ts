@@ -11,12 +11,15 @@ function buildSystemPrompt(): string {
 Your role is to analyze photos of trees submitted by customers and provide actionable intelligence for the Gordon Pro crew before they arrive on site.
 
 Always respond with valid JSON matching the AIResult schema exactly. Be specific, practical, and safety-focused.
-Severity levels for flags: "info" (notable but routine), "caution" (requires extra care), "stop" (do not proceed without specialist assessment).`
+Severity levels for flags: "info" (notable but routine), "caution" (requires extra care), "stop" (do not proceed without specialist assessment).
+
+IMPORTANT: If the photos do not clearly show a tree (e.g. blurry, wrong subject, no vegetation visible), you must still return valid JSON but set "no_tree_detected": true and leave the other fields as empty strings/arrays. Do not attempt to identify a species when no tree is present.`
 }
 
 function buildUserPrompt(submission: Partial<TreeSubmission>): string {
   return `Analyze the submitted tree photos and details. Return a JSON object with this exact structure:
 {
+  "no_tree_detected": false,
   "species_name": "Common name (Scientific name)",
   "species_confidence": "high" | "medium" | "low",
   "species_description": "2-3 sentence description of this species relevant to tree work",
@@ -24,6 +27,19 @@ function buildUserPrompt(submission: Partial<TreeSubmission>): string {
   "site_considerations": ["consideration 1", "consideration 2", ...],
   "crew_tips": ["tip 1", "tip 2", ...],
   "flags": [{ "severity": "info"|"caution"|"stop", "message": "flag message" }],
+  "generated_at": "${new Date().toISOString()}"
+}
+
+If no tree is visible in the photos, return:
+{
+  "no_tree_detected": true,
+  "species_name": "",
+  "species_confidence": "low",
+  "species_description": "",
+  "key_characteristics": [],
+  "site_considerations": [],
+  "crew_tips": [],
+  "flags": [],
   "generated_at": "${new Date().toISOString()}"
 }
 

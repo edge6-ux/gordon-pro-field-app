@@ -2,15 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { put } from '@vercel/blob'
 import { v4 as uuidv4 } from 'uuid'
 
-const ALLOWED_TYPES = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-  'image/heic',
-  'image/heif',
-])
 const MAX_SIZE = 10 * 1024 * 1024 // 10 MB
+
+function isImageType(type: string, name: string): boolean {
+  if (type.startsWith('image/')) return true
+  // Some iOS camera captures arrive with empty or octet-stream type — trust extension
+  const ext = name.split('.').pop()?.toLowerCase() ?? ''
+  return ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'gif'].includes(ext)
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,7 +19,7 @@ export async function POST(request: NextRequest) {
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
-    if (!ALLOWED_TYPES.has(file.type)) {
+    if (!isImageType(file.type, file.name)) {
       return NextResponse.json({ error: 'Unsupported file type' }, { status: 400 })
     }
     if (file.size > MAX_SIZE) {

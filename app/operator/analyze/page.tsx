@@ -223,7 +223,7 @@ export default function OperatorAnalyzePage() {
       fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ submissionId: id }),
       }).catch(() => {})
 
       router.push(`/results/${id}`)

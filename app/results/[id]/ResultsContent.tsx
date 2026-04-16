@@ -6,6 +6,7 @@ import type { TreeSubmission, AIResult, Flag } from '@/lib/types'
 import {
   AlertTriangle, CheckCircle, Info, X, ChevronLeft, ChevronRight,
   Share2, Printer, Phone, Loader2, Trees, MapPin, Ruler, ArrowRight,
+  Camera,
 } from 'lucide-react'
 
 // ─── Scroll Reveal ────────────────────────────────────────────────────────────
@@ -516,6 +517,41 @@ function SuccessHeader({ submission }: { submission: TreeSubmission }) {
   )
 }
 
+// ─── No Tree Detected ─────────────────────────────────────────────────────────
+
+function NoTreeDetected({ submission }: { submission: TreeSubmission }) {
+  const isOperator = submission.source === 'operator'
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-2xl px-6 py-8 text-center">
+      <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+        <Camera className="w-7 h-7 text-amber-600" />
+      </div>
+      <h2 className="font-heading text-xl text-amber-900 mb-2">No Tree Detected</h2>
+      <p className="text-amber-800 text-sm leading-relaxed mb-5">
+        {isOperator
+          ? 'The AI couldn\'t identify a tree in these photos. Try retaking with the tree clearly centered and well-lit.'
+          : 'The AI couldn\'t identify a tree in your photos. Please resubmit with clear photos showing the full tree.'}
+      </p>
+      {isOperator ? (
+        <a
+          href="/operator/analyze"
+          className="inline-flex items-center gap-2 bg-green-dark text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-green-mid transition-colors"
+        >
+          <Camera className="w-4 h-4" />
+          Retake Photos
+        </a>
+      ) : (
+        <a
+          href="/submit"
+          className="inline-flex items-center gap-2 bg-green-dark text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-green-mid transition-colors"
+        >
+          Resubmit with New Photos
+        </a>
+      )}
+    </div>
+  )
+}
+
 // ─── Root Component ───────────────────────────────────────────────────────────
 
 export default function ResultsContent({ submission: initial }: { submission: TreeSubmission }) {
@@ -532,6 +568,11 @@ export default function ResultsContent({ submission: initial }: { submission: Tr
 
       {!hasResult ? (
         <LoadingPoller id={submission.id} onResult={handleResult} />
+      ) : submission.ai_result?.no_tree_detected ? (
+        <>
+          <NoTreeDetected submission={submission} />
+          <PhotosSection urls={submission.photo_urls} />
+        </>
       ) : (
         <>
           {submission.ai_result && <FlagAlerts flags={submission.ai_result.flags} />}
@@ -539,19 +580,16 @@ export default function ResultsContent({ submission: initial }: { submission: Tr
           {submission.ai_result && <CharacteristicsCard items={submission.ai_result.key_characteristics} />}
           {submission.ai_result && <SiteConditionsCard items={submission.ai_result.site_considerations} />}
           {submission.ai_result && <CrewTipsCard tips={submission.ai_result.crew_tips} />}
+          <PhotosSection urls={submission.photo_urls} />
+          {submission.source === 'customer' && <WhatHappensNext />}
+          {submission.source === 'operator' && <OperatorSaveJob submission={submission} />}
+          {submission.source === 'customer' && <CustomerCTA />}
+          {submission.ai_result && (
+            <p className="text-center text-xs text-gray-300 print:text-gray-400">
+              AI analysis generated {new Date(submission.ai_result.generated_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
+            </p>
+          )}
         </>
-      )}
-
-      <PhotosSection urls={submission.photo_urls} />
-
-      {hasResult && submission.source === 'customer' && <WhatHappensNext />}
-      {hasResult && submission.source === 'operator' && <OperatorSaveJob submission={submission} />}
-      {hasResult && submission.source === 'customer' && <CustomerCTA />}
-
-      {hasResult && submission.ai_result && (
-        <p className="text-center text-xs text-gray-300 print:text-gray-400">
-          AI analysis generated {new Date(submission.ai_result.generated_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
-        </p>
       )}
     </main>
   )

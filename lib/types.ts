@@ -17,6 +17,7 @@ export type TreeSubmission = {
 }
 
 export type AIResult = {
+  no_tree_detected?: boolean
   species_name: string
   species_confidence: 'high' | 'medium' | 'low'
   species_description: string
