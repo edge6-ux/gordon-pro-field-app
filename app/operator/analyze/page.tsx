@@ -52,9 +52,13 @@ const MAX_SIZE_BYTES = 10 * 1024 * 1024
 
 function compressImage(file: File): Promise<File> {
   return new Promise((resolve) => {
+    // Timeout: if anything hangs, fall back to original after 15s
+    const timer = setTimeout(() => resolve(file), 15000)
+
     const objectUrl = URL.createObjectURL(file)
     const img = new window.Image()
     img.onload = () => {
+      clearTimeout(timer)
       URL.revokeObjectURL(objectUrl)
       const MAX = 1920
       let w = img.naturalWidth || MAX
@@ -79,13 +83,18 @@ function compressImage(file: File): Promise<File> {
         0.82
       )
     }
-    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file) }
+    img.onerror = () => { clearTimeout(timer); URL.revokeObjectURL(objectUrl); resolve(file) }
     img.src = objectUrl
   })
 }
 
 async function uploadFile(file: File, onProgress: (pct: number) => void): Promise<string> {
   const compressed = await compressImage(file)
+
+  if (compressed.size > 4 * 1024 * 1024) {
+    throw new Error(`File is ${(compressed.size / 1024 / 1024).toFixed(1)}MB — please use a smaller photo`)
+  }
+
   return new Promise((resolve, reject) => {
     const fd = new FormData()
     fd.append('file', compressed)
@@ -98,8 +107,10 @@ async function uploadFile(file: File, onProgress: (pct: number) => void): Promis
         const body = JSON.parse(xhr.responseText) as { url?: string; error?: string }
         if (body.url) resolve(body.url)
         else reject(new Error(body.error ?? 'Upload failed'))
+      } else if (xhr.status === 413) {
+        reject(new Error('File too large — please try a smaller photo'))
       } else {
-        let msg = 'Upload failed'
+        let msg = `Upload failed (${xhr.status})`
         try { msg = (JSON.parse(xhr.responseText) as { error?: string }).error ?? msg } catch { /* empty */ }
         reject(new Error(msg))
       }
