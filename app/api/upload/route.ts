@@ -5,6 +5,11 @@ import { v4 as uuidv4 } from 'uuid'
 const MAX_SIZE = 10 * 1024 * 1024 // 10 MB (after client-side compression, always well under)
 
 export async function POST(request: NextRequest) {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    console.error('BLOB_READ_WRITE_TOKEN is not set')
+    return NextResponse.json({ error: 'Storage not configured — add BLOB_READ_WRITE_TOKEN to Vercel environment variables' }, { status: 500 })
+  }
+
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File | null

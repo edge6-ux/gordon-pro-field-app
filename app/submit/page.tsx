@@ -891,6 +891,14 @@ export default function SubmitPage() {
                   </p>
                 </div>
 
+                {/* One tree notice */}
+                <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4">
+                  <span className="text-amber-500 text-base leading-none mt-0.5">⚠</span>
+                  <p className="text-[13px] text-amber-800 leading-snug">
+                    <span className="font-semibold">One tree per submission.</span> All photos should be of the same tree so our AI can give you an accurate assessment.
+                  </p>
+                </div>
+
                 {/* Tips card */}
                 <div className="bg-[#EAF3DE] border border-[#C0DD97] rounded-xl p-4 mb-6">
                   <p className="text-[14px] font-bold text-[#27500A] mb-2">

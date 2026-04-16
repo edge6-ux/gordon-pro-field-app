@@ -17,7 +17,7 @@ type PhotoItem = {
   preview: string
   url: string | null
   progress: number
-  error: boolean
+  errorMessage: string | null
 }
 
 type TreeHeightValue = '' | 'under_20ft' | '20_40ft' | '40_60ft' | 'over_60ft'
@@ -175,10 +175,11 @@ export default function OperatorAnalyzePage() {
     const slots = MAX_PHOTOS - current.length
     if (slots <= 0) return
 
+    const imageExts = new Set(['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'gif'])
     const toAdd = arr.slice(0, slots).filter(f => {
-      if (!f.type.startsWith('image/')) return false
-      if (f.size > MAX_SIZE_BYTES) return false
-      return true
+      if (f.type.startsWith('image/')) return true
+      const ext = f.name.split('.').pop()?.toLowerCase() ?? ''
+      return imageExts.has(ext)
     })
 
     const newItems: PhotoItem[] = toAdd.map(file => ({
@@ -187,7 +188,7 @@ export default function OperatorAnalyzePage() {
       preview: URL.createObjectURL(file),
       url: null,
       progress: 0,
-      error: false,
+      errorMessage: null,
     }))
 
     setPhotos(prev => {
@@ -207,9 +208,10 @@ export default function OperatorAnalyzePage() {
             prev.map(p => p.id === item.id ? { ...p, url, progress: 100 } : p)
           )
         })
-        .catch(() => {
+        .catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : 'Upload failed'
           setPhotos(prev =>
-            prev.map(p => p.id === item.id ? { ...p, error: true } : p)
+            prev.map(p => p.id === item.id ? { ...p, errorMessage: msg } : p)
           )
         })
     })
@@ -227,8 +229,8 @@ export default function OperatorAnalyzePage() {
     })
   }
 
-  const allUploaded = photos.length > 0 && photos.every(p => p.url !== null && !p.error)
-  const hasErrors = photos.some(p => p.error)
+  const allUploaded = photos.length > 0 && photos.every(p => p.url !== null && !p.errorMessage)
+  const hasErrors = photos.some(p => p.errorMessage)
 
   const handleSubmit = async () => {
     if (!allUploaded) return
@@ -288,9 +290,17 @@ export default function OperatorAnalyzePage() {
 
         {/* ── Phase 1: Photo Capture ── */}
         <h1 className="font-heading text-[26px] text-green-dark mb-2">Capture the Tree</h1>
-        <p className="text-gray-400 font-body text-[14px] mb-6">
+        <p className="text-gray-400 font-body text-[14px] mb-4">
           Take 2–3 photos from different angles for best results.
         </p>
+
+        {/* One tree at a time notice */}
+        <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-6">
+          <span className="text-amber-500 text-base leading-none mt-0.5">⚠</span>
+          <p className="font-body text-[13px] text-amber-800 leading-snug">
+            <span className="font-semibold">One tree per submission.</span> All photos must be of the same tree — mixing trees will confuse the AI analysis.
+          </p>
+        </div>
 
         {/* Camera button */}
         <button
@@ -330,7 +340,7 @@ export default function OperatorAnalyzePage() {
                   />
 
                   {/* Progress bar */}
-                  {!photo.url && !photo.error && (
+                  {!photo.url && !photo.errorMessage && (
                     <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-black/30">
                       <div
                         className="h-full bg-green-mid transition-all duration-200"
@@ -349,9 +359,12 @@ export default function OperatorAnalyzePage() {
                   )}
 
                   {/* Error indicator */}
-                  {photo.error && (
-                    <div className="absolute inset-0 bg-red-500/20 flex items-center justify-center">
-                      <span className="text-red-700 text-xs font-medium font-body bg-white/90 px-2 py-1 rounded">Upload failed</span>
+                  {photo.errorMessage && (
+                    <div className="absolute inset-0 bg-red-500/80 flex flex-col items-center justify-center gap-1 p-2">
+                      <span className="text-white text-[11px] font-semibold font-body text-center leading-tight">
+                        {photo.errorMessage}
+                      </span>
+                      <span className="text-white/80 text-[10px] font-body">Tap ✕ to remove</span>
                     </div>
                   )}
 
@@ -500,9 +513,12 @@ export default function OperatorAnalyzePage() {
         )}
 
         {hasErrors && (
-          <p className="text-red-500 font-body text-sm mt-3">
-            Some photos failed to upload. Remove and re-add them.
-          </p>
+          <div className="mt-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+            <p className="text-red-700 font-body text-sm font-semibold">Upload error</p>
+            <p className="text-red-600 font-body text-xs mt-0.5">
+              {photos.find(p => p.errorMessage)?.errorMessage ?? 'Upload failed — remove the photo and try again.'}
+            </p>
+          </div>
         )}
       </div>
 
