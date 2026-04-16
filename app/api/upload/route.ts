@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { put } from '@vercel/blob'
 import { v4 as uuidv4 } from 'uuid'
 
-const MAX_SIZE = 10 * 1024 * 1024 // 10 MB (after client-side compression, always well under)
+const MAX_SIZE = 10 * 1024 * 1024
+
+// Vercel Blob auto-names the token after your store name, so accept both variants
+const BLOB_TOKEN =
+  process.env.BLOB_READ_WRITE_TOKEN ||
+  process.env.BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN
 
 export async function POST(request: NextRequest) {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    console.error('BLOB_READ_WRITE_TOKEN is not set')
-    return NextResponse.json({ error: 'Storage not configured — add BLOB_READ_WRITE_TOKEN to Vercel environment variables' }, { status: 500 })
+  if (!BLOB_TOKEN) {
+    console.error('No Blob token found in environment')
+    return NextResponse.json({ error: 'Storage not configured' }, { status: 500 })
   }
 
   try {
@@ -16,9 +21,6 @@ export async function POST(request: NextRequest) {
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
-    }
-    if (!file.type.startsWith('image/') && file.size === 0) {
-      return NextResponse.json({ error: 'Invalid file' }, { status: 400 })
     }
     if (file.size > MAX_SIZE) {
       return NextResponse.json({ error: 'File exceeds 10 MB limit' }, { status: 400 })
@@ -30,6 +32,7 @@ export async function POST(request: NextRequest) {
     const blob = await put(filename, file, {
       access: 'public',
       contentType: file.type || 'image/jpeg',
+      token: BLOB_TOKEN,
     })
 
     return NextResponse.json({ url: blob.url })
