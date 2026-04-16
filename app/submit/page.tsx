@@ -17,6 +17,7 @@ import {
   Pencil,
 } from 'lucide-react'
 import { v4 as uuidv4 } from 'uuid'
+import { upload } from '@vercel/blob/client'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -85,25 +86,29 @@ function inputCls(error?: string): string {
   ].join(' ')
 }
 
-function uploadFile(file: File, onProgress: (pct: number) => void): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const fd = new FormData()
-    fd.append('file', file)
-    const xhr = new XMLHttpRequest()
-    xhr.upload.addEventListener('progress', (e) => {
-      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100))
+async function uploadFile(file: File, onProgress: (pct: number) => void): Promise<string> {
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
+  const filename = `submissions/${uuidv4()}.${ext}`
+
+  // Simulate progress while upload runs (client-side blob upload uses fetch, no XHR progress)
+  let pct = 0
+  const timer = setInterval(() => {
+    pct = Math.min(pct + 12, 85)
+    onProgress(pct)
+  }, 350)
+
+  try {
+    const blob = await upload(filename, file, {
+      access: 'public',
+      handleUploadUrl: '/api/upload',
     })
-    xhr.addEventListener('load', () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve((JSON.parse(xhr.responseText) as { url: string }).url)
-      } else {
-        reject(new Error('Upload failed'))
-      }
-    })
-    xhr.addEventListener('error', () => reject(new Error('Network error')))
-    xhr.open('POST', '/api/upload')
-    xhr.send(fd)
-  })
+    clearInterval(timer)
+    onProgress(100)
+    return blob.url
+  } catch (err) {
+    clearInterval(timer)
+    throw err
+  }
 }
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
