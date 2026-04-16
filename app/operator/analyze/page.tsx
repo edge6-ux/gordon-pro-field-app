@@ -8,7 +8,6 @@ import {
   Home, Trees,
 } from 'lucide-react'
 import { v4 as uuidv4 } from 'uuid'
-import { upload } from '@vercel/blob/client'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,28 +50,64 @@ const MAX_SIZE_BYTES = 10 * 1024 * 1024
 
 // ─── Upload helper ────────────────────────────────────────────────────────────
 
+function compressImage(file: File): Promise<File> {
+  return new Promise((resolve) => {
+    const objectUrl = URL.createObjectURL(file)
+    const img = new window.Image()
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl)
+      const MAX = 1920
+      let w = img.naturalWidth || MAX
+      let h = img.naturalHeight || MAX
+      if (w > MAX || h > MAX) {
+        if (w >= h) { h = Math.round((h / w) * MAX); w = MAX }
+        else { w = Math.round((w / h) * MAX); h = MAX }
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = w
+      canvas.height = h
+      const ctx = canvas.getContext('2d')
+      if (!ctx) { resolve(file); return }
+      ctx.drawImage(img, 0, 0, w, h)
+      canvas.toBlob(
+        (blob) => resolve(
+          blob
+            ? new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg', lastModified: Date.now() })
+            : file
+        ),
+        'image/jpeg',
+        0.82
+      )
+    }
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file) }
+    img.src = objectUrl
+  })
+}
+
 async function uploadFile(file: File, onProgress: (pct: number) => void): Promise<string> {
-  const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
-  const filename = `submissions/${uuidv4()}.${ext}`
-
-  let pct = 0
-  const timer = setInterval(() => {
-    pct = Math.min(pct + 12, 85)
-    onProgress(pct)
-  }, 350)
-
-  try {
-    const blob = await upload(filename, file, {
-      access: 'public',
-      handleUploadUrl: '/api/upload',
+  const compressed = await compressImage(file)
+  return new Promise((resolve, reject) => {
+    const fd = new FormData()
+    fd.append('file', compressed)
+    const xhr = new XMLHttpRequest()
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100))
     })
-    clearInterval(timer)
-    onProgress(100)
-    return blob.url
-  } catch (err) {
-    clearInterval(timer)
-    throw err
-  }
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        const body = JSON.parse(xhr.responseText) as { url?: string; error?: string }
+        if (body.url) resolve(body.url)
+        else reject(new Error(body.error ?? 'Upload failed'))
+      } else {
+        let msg = 'Upload failed'
+        try { msg = (JSON.parse(xhr.responseText) as { error?: string }).error ?? msg } catch { /* empty */ }
+        reject(new Error(msg))
+      }
+    })
+    xhr.addEventListener('error', () => reject(new Error('Network error — check connection')))
+    xhr.open('POST', '/api/upload')
+    xhr.send(fd)
+  })
 }
 
 // ─── Loading Overlay ──────────────────────────────────────────────────────────
