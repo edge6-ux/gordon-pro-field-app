@@ -15,6 +15,7 @@ interface SubmitBody {
   proximity?: TreeSubmission['proximity_to_structures']
   notes?: string
   photoUrls: string[]
+  source?: TreeSubmission['source']
 }
 
 export async function POST(request: NextRequest) {
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
       additional_notes: body.notes ?? '',
       photo_urls: body.photoUrls,
       status: 'pending',
-      source: 'customer',
+      source: body.source === 'operator' ? 'operator' : 'customer',
     }
 
     const supabase = getServiceClient()

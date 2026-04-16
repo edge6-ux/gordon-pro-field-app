@@ -26,6 +26,16 @@
     transition-timing-function: ease;
     transition-duration: 150ms;
   }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pt-safe-top {
+    padding-top: max(env(safe-area-inset-top), 1rem);
+  }
 }
 
 /* ── Step transition animations ── */

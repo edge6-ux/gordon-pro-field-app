@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter, Oswald } from 'next/font/google'
 import './globals.css'
 import AppHeader from '@/components/layout/AppHeader'
@@ -19,6 +19,19 @@ const oswald = Oswald({
 export const metadata: Metadata = {
   title: 'Gordon Pro Field App',
   description: 'Tree assessment intake for Gordon Pro Tree Service crews',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'GP Field',
+  },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#1C3A2B',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 }
 
 export default function RootLayout({
