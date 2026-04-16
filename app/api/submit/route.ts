@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
       additional_notes: body.notes ?? '',
       photo_urls: body.photoUrls,
       status: 'pending',
+      source: 'customer',
     }
 
     const supabase = getServiceClient()

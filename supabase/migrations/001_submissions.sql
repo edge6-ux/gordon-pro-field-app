@@ -12,8 +12,11 @@ CREATE TABLE submissions (
   additional_notes TEXT,
   photo_urls TEXT[] DEFAULT '{}',
   ai_result JSONB,
-  status TEXT DEFAULT 'pending'
+  status TEXT DEFAULT 'pending',
+  source TEXT DEFAULT 'customer'
 );
+
+CREATE INDEX idx_submissions_source ON submissions(source);
 
 CREATE INDEX idx_submissions_created_at ON submissions(created_at DESC);
 CREATE INDEX idx_submissions_status ON submissions(status);

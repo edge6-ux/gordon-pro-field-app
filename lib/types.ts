@@ -13,6 +13,7 @@ export type TreeSubmission = {
   photo_urls: string[]
   ai_result: AIResult | null
   status: 'pending' | 'reviewed' | 'quoted' | 'scheduled' | 'completed'
+  source: 'customer' | 'operator'
 }
 
 export type AIResult = {
