@@ -50,7 +50,7 @@ function LoadingPoller({ id, onResult }: { id: string; onResult: (s: TreeSubmiss
   const [msgIdx, setMsgIdx] = useState(0)
   const [timedOut, setTimedOut] = useState(false)
   const attempts = useRef(0)
-  const maxAttempts = 10
+  const maxAttempts = 20
 
   useEffect(() => {
     const cycleMsg = setInterval(() => {

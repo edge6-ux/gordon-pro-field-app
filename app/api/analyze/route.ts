@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { analyzeTree } from '@/lib/claude'
 import { getServiceClient } from '@/lib/supabase'
 
+export const maxDuration = 120
+
 export async function POST(request: NextRequest) {
   try {
     const { submissionId } = await request.json() as { submissionId: string }
