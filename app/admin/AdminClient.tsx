@@ -427,7 +427,7 @@ export default function AdminClient() {
         (payload) => {
           const newSub = payload.new as TreeSubmission
           setSubmissions(prev => [newSub, ...prev])
-          setFlashIds(prev => new Set([...prev, newSub.id]))
+          setFlashIds(prev => { const s = new Set(prev); s.add(newSub.id); return s })
           setTimeout(() => {
             setFlashIds(prev => {
               const next = new Set(prev)
