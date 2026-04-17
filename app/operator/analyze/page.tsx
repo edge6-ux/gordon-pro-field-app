@@ -242,12 +242,11 @@ export default function OperatorAnalyzePage() {
       if (!res.ok) throw new Error('Submit failed')
       const { id } = await res.json() as { id: string }
 
-      // Fire analysis in background — don't await
-      fetch('/api/analyze', {
+      await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ submissionId: id }),
-      }).catch(() => {})
+      })
 
       router.push(`/results/${id}`)
     } catch {

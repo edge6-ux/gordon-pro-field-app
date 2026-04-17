@@ -66,8 +66,8 @@ export async function analyzeTree(
   const imageBlocks: ImageBlockParam[] = photoUrls.map(buildImageBlock)
 
   const response = await anthropic.messages.create({
-    model: 'claude-opus-4-7',
-    max_tokens: 1500,
+    model: 'claude-sonnet-4-6',
+    max_tokens: 1000,
     system: buildSystemPrompt(),
     messages: [
       {
