@@ -111,7 +111,7 @@ function LoadingOverlay() {
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-green-dark px-8">
       <div className="relative w-20 h-20 mb-8">
-        <Image src="/images/gordonpro.png" alt="Gordon Pro" fill className="object-contain" sizes="80px" />
+        <Image src="/images/fieldapp.png" alt="Gordon Pro" fill className="object-contain" sizes="80px" />
       </div>
       <Loader2 className="text-gold animate-spin mb-6" size={32} />
       <p className="font-body text-white text-base text-center mb-8 min-h-[1.5rem] transition-all duration-300">

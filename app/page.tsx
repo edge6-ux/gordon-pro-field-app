@@ -98,7 +98,7 @@ export default function HomePage() {
         >
           <div className="relative w-[120px] h-[120px] mb-6">
             <Image
-              src="/images/gordonpro.png"
+              src="/images/fieldapp.png"
               alt="Gordon Pro Tree Service"
               fill
               className="object-contain"

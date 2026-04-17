@@ -8,7 +8,7 @@ export default function AppHeader() {
         <Link href="/" className="flex items-center gap-2 shrink-0">
           <div className="relative w-8 h-8">
             <Image
-              src="/images/gordonpro.png"
+              src="/images/fieldapp.png"
               alt="Gordon Pro Tree Service"
               fill
               className="object-contain"

@@ -8,7 +8,7 @@ export default function NotFound() {
       <div className="w-full max-w-sm text-center">
         <div className="relative w-20 h-20 mx-auto mb-8">
           <Image
-            src="/images/gordonpro.png"
+            src="/images/fieldapp.png"
             alt="Gordon Pro"
             fill
             className="object-contain"

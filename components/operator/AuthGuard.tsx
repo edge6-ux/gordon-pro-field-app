@@ -80,7 +80,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col items-center mb-10">
           <div className="relative w-16 h-16 mb-5">
             <Image
-              src="/images/gordonpro.png"
+              src="/images/fieldapp.png"
               alt="Gordon Pro"
               fill
               className="object-contain"

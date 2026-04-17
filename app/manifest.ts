@@ -12,12 +12,12 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: 'portrait',
     icons: [
       {
-        src: '/images/gordonpro.png',
+        src: '/images/fieldapp.png',
         sizes: '192x192',
         type: 'image/png',
       },
       {
-        src: '/images/gordonpro.png',
+        src: '/images/fieldapp.png',
         sizes: '512x512',
         type: 'image/png',
       },

@@ -23,14 +23,14 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Gordon Pro Tree Service — Free Tree Assessment',
     description: 'Upload photos of your tree for an instant AI-powered assessment. Licensed arborists, fast response.',
-    images: [{ url: '/images/gordonpro.png', width: 512, height: 512, alt: 'Gordon Pro Tree Service' }],
+    images: [{ url: '/images/fieldapp.png', width: 512, height: 512, alt: 'Gordon Pro Tree Service' }],
     type: 'website',
   },
   twitter: {
     card: 'summary',
     title: 'Gordon Pro Tree Service — Free Tree Assessment',
     description: 'Upload photos of your tree for an instant AI-powered assessment.',
-    images: ['/images/gordonpro.png'],
+    images: ['/images/fieldapp.png'],
   },
   appleWebApp: {
     capable: true,
