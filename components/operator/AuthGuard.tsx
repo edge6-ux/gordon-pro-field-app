@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { Loader2, Lock } from 'lucide-react'
 
 const SESSION_KEY = 'gp_crew_authenticated'
@@ -79,10 +80,10 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col items-center mb-10">
           <div className="relative w-16 h-16 mb-5">
             <Image
-              src="/images/gptslogo.png"
+              src="/images/gordonpro.png"
               alt="Gordon Pro"
               fill
-              className="object-contain brightness-0 invert"
+              className="object-contain"
               sizes="64px"
             />
           </div>
@@ -141,6 +142,15 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         <p className="text-white/30 text-xs font-body text-center mt-8">
           Session lasts 8 hours &middot; Gordon Pro crew only
         </p>
+
+        <div className="mt-6 text-center">
+          <Link
+            href="/admin"
+            className="text-white/30 text-xs font-body hover:text-white/60 transition-colors"
+          >
+            Admin Sign In →
+          </Link>
+        </div>
       </div>
     </div>
   )

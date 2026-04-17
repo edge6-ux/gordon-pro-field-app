@@ -3,6 +3,32 @@ import { v4 as uuidv4 } from 'uuid'
 import { getServiceClient } from '@/lib/supabase'
 import type { TreeSubmission } from '@/lib/types'
 
+// ─── Rate limiting ────────────────────────────────────────────────────────────
+
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
+
+function getRateLimitKey(request: NextRequest): string {
+  return (
+    request.headers.get('x-forwarded-for')?.split(',')[0].trim() ??
+    request.headers.get('x-real-ip') ??
+    'unknown'
+  )
+}
+
+function checkRateLimit(key: string): boolean {
+  const now = Date.now()
+  const windowMs = 60 * 60 * 1000
+  const maxRequests = 10
+  const record = rateLimitMap.get(key)
+  if (!record || now > record.resetTime) {
+    rateLimitMap.set(key, { count: 1, resetTime: now + windowMs })
+    return true
+  }
+  if (record.count >= maxRequests) return false
+  record.count++
+  return true
+}
+
 interface SubmitBody {
   firstName: string
   lastName: string
@@ -19,6 +45,14 @@ interface SubmitBody {
 }
 
 export async function POST(request: NextRequest) {
+  const ip = getRateLimitKey(request)
+  if (!checkRateLimit(ip)) {
+    return NextResponse.json(
+      { error: 'Too many submissions. Please try again later or call us at (770) 271-6072.' },
+      { status: 429 }
+    )
+  }
+
   try {
     const body = await request.json() as SubmitBody
 
@@ -75,7 +109,7 @@ async function sendEmailNotification(submission: Omit<TreeSubmission, 'ai_result
   await resend.emails.send({
     from: 'Gordon Pro Field App <noreply@gordonprotreeservice.com>',
     to: [notifyEmail],
-    subject: `New quote request — ${submission.customer_name}`,
+    subject: `New assessment request — ${submission.customer_name}`,
     html: `
       <h2>New Tree Assessment Submission</h2>
       <p><strong>Customer:</strong> ${submission.customer_name}</p>

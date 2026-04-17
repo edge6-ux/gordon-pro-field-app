@@ -14,6 +14,7 @@ export type TreeSubmission = {
   ai_result: AIResult | null
   status: 'pending' | 'reviewed' | 'quoted' | 'scheduled' | 'completed'
   source: 'customer' | 'operator'
+  internal_notes?: string
 }
 
 export type AIResult = {

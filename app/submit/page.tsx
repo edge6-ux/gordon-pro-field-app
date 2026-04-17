@@ -17,6 +17,7 @@ import {
   Pencil,
 } from 'lucide-react'
 import { v4 as uuidv4 } from 'uuid'
+import imageCompression from 'browser-image-compression'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,6 +31,7 @@ type PhotoItem = {
   preview: string
   url: string | null
   progress: number
+  phase: 'compressing' | 'uploading' | 'done' | 'error'
   error: string | null
 }
 
@@ -85,49 +87,23 @@ function inputCls(error?: string): string {
   ].join(' ')
 }
 
-function compressImage(file: File): Promise<File> {
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => resolve(file), 15000)
-
-    const objectUrl = URL.createObjectURL(file)
-    const img = new window.Image()
-    img.onload = () => {
-      clearTimeout(timer)
-      URL.revokeObjectURL(objectUrl)
-      const MAX = 1920
-      let w = img.naturalWidth || MAX
-      let h = img.naturalHeight || MAX
-      if (w > MAX || h > MAX) {
-        if (w >= h) { h = Math.round((h / w) * MAX); w = MAX }
-        else { w = Math.round((w / h) * MAX); h = MAX }
-      }
-      const canvas = document.createElement('canvas')
-      canvas.width = w
-      canvas.height = h
-      const ctx = canvas.getContext('2d')
-      if (!ctx) { resolve(file); return }
-      ctx.drawImage(img, 0, 0, w, h)
-      canvas.toBlob(
-        (blob) => resolve(
-          blob
-            ? new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg', lastModified: Date.now() })
-            : file
-        ),
-        'image/jpeg',
-        0.82
-      )
-    }
-    img.onerror = () => { clearTimeout(timer); URL.revokeObjectURL(objectUrl); resolve(file) }
-    img.src = objectUrl
-  })
+interface UploadCallbacks {
+  onPhase: (phase: 'compressing' | 'uploading') => void
+  onProgress: (pct: number) => void
 }
 
-async function uploadFile(file: File, onProgress: (pct: number) => void): Promise<string> {
-  const compressed = await compressImage(file)
+async function uploadFile(file: File, { onPhase, onProgress }: UploadCallbacks): Promise<string> {
+  if (!navigator.onLine) throw new Error('No internet connection — uploads paused')
 
-  if (compressed.size > 4 * 1024 * 1024) {
-    throw new Error(`File is ${(compressed.size / 1024 / 1024).toFixed(1)}MB — please use a smaller photo`)
-  }
+  onPhase('compressing')
+  const compressed = await imageCompression(file, {
+    maxSizeMB: 1.5,
+    maxWidthOrHeight: 1920,
+    useWebWorker: true,
+    onProgress,
+  })
+
+  onPhase('uploading')
 
   return new Promise((resolve, reject) => {
     const fd = new FormData()
@@ -286,7 +262,7 @@ function Step1({
     <>
       <div className="mb-8">
         <h1 className="font-heading text-[28px] text-green-dark mb-2">Let&apos;s Start With You</h1>
-        <p className="text-gray-400 text-base">We&apos;ll use this to follow up with your quote.</p>
+        <p className="text-gray-400 text-base">We&apos;ll use this to follow up about your assessment.</p>
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 md:p-8 space-y-5">
@@ -741,6 +717,7 @@ export default function SubmitPage() {
       preview:  URL.createObjectURL(file),
       url:      null,
       progress: 0,
+      phase:    'compressing' as const,
       error:    null,
     }))
 
@@ -749,14 +726,16 @@ export default function SubmitPage() {
     setPhotos((prev) => [...prev, ...adding])
 
     for (const item of adding) {
-      uploadFile(item.file, (pct) => {
-        setPhotos((prev) => prev.map((p) => p.id === item.id ? { ...p, progress: pct } : p))
+      uploadFile(item.file, {
+        onPhase: (phase) => setPhotos((prev) => prev.map((p) => p.id === item.id ? { ...p, phase } : p)),
+        onProgress: (progress) => setPhotos((prev) => prev.map((p) => p.id === item.id ? { ...p, progress } : p)),
       })
         .then((url) => {
-          setPhotos((prev) => prev.map((p) => p.id === item.id ? { ...p, url, progress: 100 } : p))
+          setPhotos((prev) => prev.map((p) => p.id === item.id ? { ...p, url, progress: 100, phase: 'done' } : p))
         })
-        .catch(() => {
-          setPhotos((prev) => prev.map((p) => p.id === item.id ? { ...p, error: 'Upload failed' } : p))
+        .catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : 'Upload failed'
+          setPhotos((prev) => prev.map((p) => p.id === item.id ? { ...p, error: msg, phase: 'error' } : p))
           addToast(`Failed to upload "${item.file.name}"`)
         })
     }
@@ -791,8 +770,8 @@ export default function SubmitPage() {
 
   // ── Submit ──────────────────────────────────────────────────────────────────
   async function handleSubmit() {
-    const completed = photos.filter((p) => p.url !== null)
-    const pending   = photos.filter((p) => p.url === null && p.error === null)
+    const completed = photos.filter((p) => p.phase === 'done')
+    const pending   = photos.filter((p) => p.phase === 'compressing' || p.phase === 'uploading')
 
     if (photos.length === 0) {
       setErrors({ photos: 'Please upload at least one photo' })
@@ -847,7 +826,7 @@ export default function SubmitPage() {
     }
   }
 
-  const completedCount = photos.filter((p) => p.url !== null).length
+  const completedCount = photos.filter((p) => p.phase === 'done').length
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
@@ -1011,25 +990,25 @@ export default function SubmitPage() {
                           </button>
 
                           {/* Status overlay */}
-                          {photo.error ? (
+                          {photo.phase === 'error' ? (
                             <div className="absolute inset-x-0 bottom-0 bg-red-500/80 rounded-b-xl px-2 py-1">
                               <p className="text-white text-[10px] text-center">Failed</p>
                             </div>
-                          ) : photo.url ? (
+                          ) : photo.phase === 'done' ? (
                             <div className="absolute bottom-1.5 right-1.5 w-5 h-5 bg-green-dark
                                             rounded-full flex items-center justify-center z-10">
                               <Check size={10} className="text-white" strokeWidth={3} />
                             </div>
                           ) : (
-                            <div className="absolute inset-x-0 bottom-0 bg-black/40 rounded-b-xl px-2 py-1.5">
+                            <div className="absolute inset-x-0 bottom-0 bg-black/50 rounded-b-xl px-2 py-1.5">
                               <div className="w-full bg-white/30 rounded-full h-1">
                                 <div
-                                  className="h-full bg-white rounded-full transition-all duration-100"
+                                  className="h-full bg-gold rounded-full transition-all duration-100"
                                   style={{ width: `${photo.progress}%` }}
                                 />
                               </div>
                               <p className="text-white text-[10px] text-center mt-0.5">
-                                {photo.progress}%
+                                {photo.phase === 'compressing' ? 'Compressing…' : `${photo.progress}%`}
                               </p>
                             </div>
                           )}
@@ -1067,9 +1046,10 @@ export default function SubmitPage() {
                       }}
                       className="mt-0.5 w-4 h-4 accent-green-dark shrink-0"
                     />
-                    <span className="text-sm text-gray-400 leading-relaxed">
-                      I understand this submission is for a free quote estimate. Gordon Pro Tree
-                      Service will contact me to discuss the job.
+                    <span className="text-[13px] text-gray-400 leading-relaxed">
+                      By submitting, I agree that Gordon Pro Tree Service may contact me about my
+                      assessment request. Photos uploaded are used solely for assessment purposes and
+                      are not shared with third parties.
                     </span>
                   </label>
                   {errors.terms && (
@@ -1109,7 +1089,7 @@ export default function SubmitPage() {
                         Analyzing your tree…
                       </>
                     ) : (
-                      'Submit for Free Quote'
+                      'Submit for Free Assessment'
                     )}
                   </button>
                 </div>

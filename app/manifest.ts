@@ -12,12 +12,12 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: 'portrait',
     icons: [
       {
-        src: '/images/gptslogo.png',
+        src: '/images/gordonpro.png',
         sizes: '192x192',
         type: 'image/png',
       },
       {
-        src: '/images/gptslogo.png',
+        src: '/images/gordonpro.png',
         sizes: '512x512',
         type: 'image/png',
       },

@@ -8,6 +8,7 @@ import {
   Home, Trees,
 } from 'lucide-react'
 import { v4 as uuidv4 } from 'uuid'
+import imageCompression from 'browser-image-compression'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -17,6 +18,7 @@ type PhotoItem = {
   preview: string
   url: string | null
   progress: number
+  phase: 'compressing' | 'uploading' | 'done' | 'error'
   errorMessage: string | null
 }
 
@@ -50,50 +52,23 @@ const MAX_SIZE_BYTES = 10 * 1024 * 1024
 
 // ─── Upload helper ────────────────────────────────────────────────────────────
 
-function compressImage(file: File): Promise<File> {
-  return new Promise((resolve) => {
-    // Timeout: if anything hangs, fall back to original after 15s
-    const timer = setTimeout(() => resolve(file), 15000)
-
-    const objectUrl = URL.createObjectURL(file)
-    const img = new window.Image()
-    img.onload = () => {
-      clearTimeout(timer)
-      URL.revokeObjectURL(objectUrl)
-      const MAX = 1920
-      let w = img.naturalWidth || MAX
-      let h = img.naturalHeight || MAX
-      if (w > MAX || h > MAX) {
-        if (w >= h) { h = Math.round((h / w) * MAX); w = MAX }
-        else { w = Math.round((w / h) * MAX); h = MAX }
-      }
-      const canvas = document.createElement('canvas')
-      canvas.width = w
-      canvas.height = h
-      const ctx = canvas.getContext('2d')
-      if (!ctx) { resolve(file); return }
-      ctx.drawImage(img, 0, 0, w, h)
-      canvas.toBlob(
-        (blob) => resolve(
-          blob
-            ? new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg', lastModified: Date.now() })
-            : file
-        ),
-        'image/jpeg',
-        0.82
-      )
-    }
-    img.onerror = () => { clearTimeout(timer); URL.revokeObjectURL(objectUrl); resolve(file) }
-    img.src = objectUrl
-  })
+interface UploadCallbacks {
+  onPhase: (phase: 'compressing' | 'uploading') => void
+  onProgress: (pct: number) => void
 }
 
-async function uploadFile(file: File, onProgress: (pct: number) => void): Promise<string> {
-  const compressed = await compressImage(file)
+async function uploadFile(file: File, { onPhase, onProgress }: UploadCallbacks): Promise<string> {
+  if (!navigator.onLine) throw new Error('No internet connection — uploads paused')
 
-  if (compressed.size > 4 * 1024 * 1024) {
-    throw new Error(`File is ${(compressed.size / 1024 / 1024).toFixed(1)}MB — please use a smaller photo`)
-  }
+  onPhase('compressing')
+  const compressed = await imageCompression(file, {
+    maxSizeMB: 1.5,
+    maxWidthOrHeight: 1920,
+    useWebWorker: true,
+    onProgress,
+  })
+
+  onPhase('uploading')
 
   return new Promise((resolve, reject) => {
     const fd = new FormData()
@@ -136,7 +111,7 @@ function LoadingOverlay() {
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-green-dark px-8">
       <div className="relative w-20 h-20 mb-8">
-        <Image src="/images/gptslogo.png" alt="Gordon Pro" fill className="object-contain brightness-0 invert" sizes="80px" />
+        <Image src="/images/gordonpro.png" alt="Gordon Pro" fill className="object-contain" sizes="80px" />
       </div>
       <Loader2 className="text-gold animate-spin mb-6" size={32} />
       <p className="font-body text-white text-base text-center mb-8 min-h-[1.5rem] transition-all duration-300">
@@ -199,6 +174,7 @@ export default function OperatorAnalyzePage() {
       preview: URL.createObjectURL(file),
       url: null,
       progress: 0,
+      phase: 'compressing' as const,
       errorMessage: null,
     }))
 
@@ -209,21 +185,16 @@ export default function OperatorAnalyzePage() {
     })
 
     newItems.forEach(item => {
-      uploadFile(item.file, (pct) => {
-        setPhotos(prev =>
-          prev.map(p => p.id === item.id ? { ...p, progress: pct } : p)
-        )
+      uploadFile(item.file, {
+        onPhase: (phase) => setPhotos(prev => prev.map(p => p.id === item.id ? { ...p, phase } : p)),
+        onProgress: (progress) => setPhotos(prev => prev.map(p => p.id === item.id ? { ...p, progress } : p)),
       })
         .then(url => {
-          setPhotos(prev =>
-            prev.map(p => p.id === item.id ? { ...p, url, progress: 100 } : p)
-          )
+          setPhotos(prev => prev.map(p => p.id === item.id ? { ...p, url, progress: 100, phase: 'done' } : p))
         })
         .catch((err: unknown) => {
           const msg = err instanceof Error ? err.message : 'Upload failed'
-          setPhotos(prev =>
-            prev.map(p => p.id === item.id ? { ...p, errorMessage: msg } : p)
-          )
+          setPhotos(prev => prev.map(p => p.id === item.id ? { ...p, errorMessage: msg, phase: 'error' } : p))
         })
     })
   }, [detailsVisible])
@@ -240,8 +211,8 @@ export default function OperatorAnalyzePage() {
     })
   }
 
-  const allUploaded = photos.length > 0 && photos.every(p => p.url !== null && !p.errorMessage)
-  const hasErrors = photos.some(p => p.errorMessage)
+  const allUploaded = photos.length > 0 && photos.every(p => p.phase === 'done')
+  const hasErrors = photos.some(p => p.phase === 'error')
 
   const handleSubmit = async () => {
     if (!allUploaded) return
@@ -350,18 +321,23 @@ export default function OperatorAnalyzePage() {
                     sizes="180px"
                   />
 
-                  {/* Progress bar */}
-                  {!photo.url && !photo.errorMessage && (
-                    <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-black/30">
-                      <div
-                        className="h-full bg-green-mid transition-all duration-200"
-                        style={{ width: `${photo.progress}%` }}
-                      />
+                  {/* Progress / Compressing */}
+                  {(photo.phase === 'compressing' || photo.phase === 'uploading') && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-2 py-1.5">
+                      <div className="h-1 bg-white/30 rounded-full overflow-hidden mb-1">
+                        <div
+                          className="h-full bg-gold transition-all duration-200 rounded-full"
+                          style={{ width: `${photo.progress}%` }}
+                        />
+                      </div>
+                      <p className="text-white text-[10px] text-center font-body">
+                        {photo.phase === 'compressing' ? 'Compressing…' : `Uploading ${photo.progress}%`}
+                      </p>
                     </div>
                   )}
 
                   {/* Success indicator */}
-                  {photo.url && (
+                  {photo.phase === 'done' && (
                     <div className="absolute top-2 right-2">
                       <div className="bg-green-dark rounded-full p-0.5">
                         <CheckCircle className="text-white" size={16} />
@@ -370,7 +346,7 @@ export default function OperatorAnalyzePage() {
                   )}
 
                   {/* Error indicator */}
-                  {photo.errorMessage && (
+                  {photo.phase === 'error' && (
                     <div className="absolute inset-0 bg-red-500/80 flex flex-col items-center justify-center gap-1 p-2">
                       <span className="text-white text-[11px] font-semibold font-body text-center leading-tight">
                         {photo.errorMessage}
@@ -527,7 +503,7 @@ export default function OperatorAnalyzePage() {
           <div className="mt-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
             <p className="text-red-700 font-body text-sm font-semibold">Upload error</p>
             <p className="text-red-600 font-body text-xs mt-0.5">
-              {photos.find(p => p.errorMessage)?.errorMessage ?? 'Upload failed — remove the photo and try again.'}
+              {photos.find(p => p.phase === 'error')?.errorMessage ?? 'Upload failed — remove the photo and try again.'}
             </p>
           </div>
         )}

@@ -98,7 +98,7 @@ export default function HomePage() {
         >
           <div className="relative w-[120px] h-[120px] mb-6">
             <Image
-              src="/images/gptslogo.png"
+              src="/images/gordonpro.png"
               alt="Gordon Pro Tree Service"
               fill
               className="object-contain"
@@ -110,8 +110,8 @@ export default function HomePage() {
             Gordon Pro Field App
           </h1>
           <p className="text-white/80 text-[18px] leading-relaxed max-w-lg">
-            Get a free quote for tree removal, trimming, stump grinding and more. Upload photos
-            of your tree and we&apos;ll get back to you same day.
+            Upload photos of your tree and get an instant AI-powered assessment — then we&apos;ll
+            reach out to discuss the job and pricing.
           </p>
         </div>
       </section>
@@ -137,7 +137,7 @@ export default function HomePage() {
                 <Home size={32} className="text-gold" />
               </div>
               <h2 className="font-heading text-2xl text-green-dark mb-3">
-                Request a Free Quote
+                Request a Free Assessment
               </h2>
               <p className="text-gray-500 text-[15px] leading-relaxed mb-6">
                 Upload photos of your tree, tell us about the job, and we&apos;ll get back to
@@ -152,7 +152,7 @@ export default function HomePage() {
                 <CheckItem>Property address</CheckItem>
               </ul>
               <span className="block w-full text-center bg-gold text-green-dark font-medium rounded-lg py-3 px-4 text-sm transition-colors duration-150 group-hover:bg-amber-600">
-                Get a Free Quote →
+                Get a Free Assessment →
               </span>
             </div>
           </Link>

@@ -48,10 +48,10 @@ export default function OperatorPage() {
       <div className="absolute top-0 left-0 right-0 pt-4 px-4 flex items-center justify-between">
         <div className="relative w-12 h-12">
           <Image
-            src="/images/gptslogo.png"
+            src="/images/gordonpro.png"
             alt="Gordon Pro"
             fill
-            className="object-contain brightness-0 invert"
+            className="object-contain"
             sizes="48px"
           />
         </div>

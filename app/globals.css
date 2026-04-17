@@ -68,3 +68,22 @@
     animation: none;
   }
 }
+
+/* ── Slide animations ── */
+@keyframes slideDown {
+  from { transform: translateY(-100%); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+@keyframes slideInRight {
+  from { transform: translateX(110%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+/* ── Admin: new submission flash ── */
+@keyframes flashNew {
+  0%   { background-color: #dcfce7; }
+  100% { background-color: #ffffff; }
+}
+.flash-new {
+  animation: flashNew 3s ease-out forwards;
+}

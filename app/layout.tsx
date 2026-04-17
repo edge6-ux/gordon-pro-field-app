@@ -3,6 +3,7 @@ import { Inter, Oswald } from 'next/font/google'
 import './globals.css'
 import AppHeader from '@/components/layout/AppHeader'
 import AppFooter from '@/components/layout/AppFooter'
+import OfflineBanner from '@/components/ui/OfflineBanner'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -18,7 +19,19 @@ const oswald = Oswald({
 
 export const metadata: Metadata = {
   title: 'Gordon Pro Field App',
-  description: 'Tree assessment intake for Gordon Pro Tree Service crews',
+  description: 'Get a free AI-powered tree assessment from Gordon Pro Tree Service. Upload photos and receive instant species ID, hazard flags, and crew tips.',
+  openGraph: {
+    title: 'Gordon Pro Tree Service — Free Tree Assessment',
+    description: 'Upload photos of your tree for an instant AI-powered assessment. Licensed arborists, fast response.',
+    images: [{ url: '/images/gordonpro.png', width: 512, height: 512, alt: 'Gordon Pro Tree Service' }],
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Gordon Pro Tree Service — Free Tree Assessment',
+    description: 'Upload photos of your tree for an instant AI-powered assessment.',
+    images: ['/images/gordonpro.png'],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -42,6 +55,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${oswald.variable}`}>
       <body className="min-h-screen flex flex-col">
+        <OfflineBanner />
         <AppHeader />
         <main className="flex-1">{children}</main>
         <AppFooter />

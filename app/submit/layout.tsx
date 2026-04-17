@@ -1,9 +1,9 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Get a Free Quote | Gordon Pro Tree Service',
+  title: 'Free Tree Assessment | Gordon Pro Tree Service',
   description:
-    'Upload photos of your tree for a free quote from Gordon Pro Tree Service. Fast response, licensed arborists.',
+    'Upload photos of your tree for a free assessment from Gordon Pro Tree Service. AI-powered analysis, licensed arborists, fast response.',
 }
 
 export default function SubmitLayout({ children }: { children: React.ReactNode }) {

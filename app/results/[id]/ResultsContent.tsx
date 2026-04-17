@@ -350,7 +350,7 @@ function PhotosSection({ urls }: { urls: string[] }) {
 function WhatHappensNext() {
   const steps = [
     { label: 'Review', desc: 'Our team reviews your assessment and photos.' },
-    { label: 'Quote', desc: 'We call or email you with a firm price — usually same day.' },
+    { label: 'Pricing', desc: 'We review the assessment and reach out with pricing — usually same day.' },
     { label: 'Schedule', desc: 'Pick a date that works. We show up on time, every time.' },
   ]
 
