@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Camera, ImagePlus, ClipboardList } from 'lucide-react'
@@ -24,7 +24,6 @@ function StatItem({ label, value }: { label: string; value: number | null }) {
 
 export default function OperatorPage() {
   const router = useRouter()
-  const libraryInputRef = useRef<HTMLInputElement>(null)
   const [stats, setStats] = useState<Stats | null>(null)
 
   useEffect(() => {
@@ -33,13 +32,6 @@ export default function OperatorPage() {
       .then((data: Stats) => setStats(data))
       .catch(() => setStats({ today: 0, week: 0, total: 0 }))
   }, [])
-
-  const handleLibrarySelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files?.length) return
-    const params = new URLSearchParams({ mode: 'library' })
-    sessionStorage.setItem('gp_operator_preload_count', String(e.target.files.length))
-    router.push(`/operator/analyze?${params}`)
-  }
 
   return (
     <div className="relative min-h-[calc(100svh-3.5rem)] bg-green-dark flex flex-col items-center justify-center px-6 overflow-hidden">
@@ -90,7 +82,7 @@ export default function OperatorPage() {
         {/* Secondary buttons */}
         <div className="flex gap-3 w-full mt-4">
           <button
-            onClick={() => libraryInputRef.current?.click()}
+            onClick={() => router.push('/operator/analyze?mode=library')}
             className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3 font-body text-[14px] text-white active:scale-[0.98] transition-transform"
             style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)' }}
           >
@@ -119,15 +111,6 @@ export default function OperatorPage() {
         </div>
       </div>
 
-      {/* Hidden library file input */}
-      <input
-        ref={libraryInputRef}
-        type="file"
-        accept="image/*"
-        multiple
-        className="hidden"
-        onChange={handleLibrarySelect}
-      />
     </div>
   )
 }
