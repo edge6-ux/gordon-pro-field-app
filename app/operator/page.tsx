@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { Camera, ImagePlus, ClipboardList } from 'lucide-react'
+import { Camera } from 'lucide-react'
 
 type Stats = { today: number; week: number; total: number }
 
@@ -70,34 +70,13 @@ export default function OperatorPage() {
           Take or upload photos to get instant species ID and job tips.
         </p>
 
-        {/* Primary CTA */}
         <button
           onClick={() => router.push('/operator/analyze')}
           className="w-full flex items-center justify-center gap-3 bg-gold text-[#1A1A1A] rounded-2xl py-5 font-heading text-xl uppercase tracking-wider active:scale-[0.98] transition-transform"
         >
           <Camera size={20} />
-          Take Photos
+          Analyze a Tree
         </button>
-
-        {/* Secondary buttons */}
-        <div className="flex gap-3 w-full mt-4">
-          <button
-            onClick={() => router.push('/operator/analyze?mode=library')}
-            className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3 font-body text-[14px] text-white active:scale-[0.98] transition-transform"
-            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)' }}
-          >
-            <ImagePlus size={16} className="text-white" />
-            Upload from Library
-          </button>
-          <button
-            onClick={() => router.push('/admin')}
-            className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3 font-body text-[14px] text-white active:scale-[0.98] transition-transform"
-            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)' }}
-          >
-            <ClipboardList size={16} className="text-white" />
-            Recent Jobs
-          </button>
-        </div>
       </div>
 
       {/* Bottom stats bar */}
