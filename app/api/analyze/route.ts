@@ -27,13 +27,14 @@ export async function POST(request: NextRequest) {
       .eq('id', submissionId)
 
     if (updateError) {
-      console.error('Update error:', updateError)
+      console.error('[analyze] Supabase update error:', updateError)
       return NextResponse.json({ error: 'Failed to save AI result' }, { status: 500 })
     }
 
     return NextResponse.json({ aiResult })
   } catch (err) {
-    console.error('Analyze error:', err)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[analyze] Error:', msg)
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }

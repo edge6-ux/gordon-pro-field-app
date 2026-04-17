@@ -242,16 +242,22 @@ export default function OperatorAnalyzePage() {
       if (!res.ok) throw new Error('Submit failed')
       const { id } = await res.json() as { id: string }
 
-      await fetch('/api/analyze', {
+      const analyzeRes = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ submissionId: id }),
       })
 
+      if (!analyzeRes.ok) {
+        let msg = `Analysis failed (${analyzeRes.status})`
+        try { msg = ((await analyzeRes.json()) as { error?: string }).error ?? msg } catch { /* empty */ }
+        throw new Error(msg)
+      }
+
       router.push(`/results/${id}`)
-    } catch {
+    } catch (err) {
       setIsSubmitting(false)
-      setSubmitError('Analysis failed. Check connection and try again.')
+      setSubmitError(err instanceof Error ? err.message : 'Analysis failed. Check connection and try again.')
     }
   }
 
