@@ -3,21 +3,24 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { Camera } from 'lucide-react'
+import { Camera, ImagePlus, ClipboardList } from 'lucide-react'
 
 type Stats = { today: number; week: number; total: number }
 
 function StatItem({ label, value }: { label: string; value: number | null }) {
   return (
-    <div className="flex flex-col items-center gap-0.5 flex-1">
-      <span className="font-heading text-[22px] leading-none text-white">
+    <div
+      className="flex flex-col items-center gap-1 flex-1 pt-3"
+      style={{ borderTop: '2px solid rgba(200,146,42,0.3)' }}
+    >
+      <span className="font-heading text-[28px] leading-none text-white font-bold">
         {value === null ? (
-          <span className="inline-block w-8 h-5 bg-white/10 rounded animate-pulse" />
+          <span className="inline-block w-8 h-6 bg-white/10 rounded animate-pulse" />
         ) : (
           value
         )}
       </span>
-      <span className="text-[11px] text-white/50 font-body">{label}</span>
+      <span className="text-[11px] text-white/50 font-body uppercase tracking-widest mt-1">{label}</span>
     </div>
   )
 }
@@ -56,36 +59,59 @@ export default function OperatorPage() {
       {/* Main content */}
       <div className="flex flex-col items-center text-center w-full max-w-xs pb-28 pt-16">
         <div
-          className="w-[120px] h-[120px] rounded-3xl flex items-center justify-center mb-8"
+          className="w-24 h-24 rounded-2xl flex items-center justify-center mb-6 animate-pulse-border"
           style={{
-            background: 'rgba(255,255,255,0.08)',
+            background: 'transparent',
             border: '2px solid rgba(200,146,42,0.4)',
+            borderRadius: '16px',
           }}
         >
-          <Camera className="text-gold" size={48} />
+          <Camera className="text-gold" size={40} />
         </div>
 
         <h1 className="font-heading text-[36px] text-white mb-3 leading-tight">Analyze a Tree</h1>
-        <p className="text-white/70 text-base font-body mb-12 max-w-xs leading-relaxed">
+        <p className="text-white/70 text-base font-body mb-10 max-w-xs leading-relaxed">
           Take or upload photos to get instant species ID and job tips.
         </p>
 
+        {/* Primary CTA */}
         <button
           onClick={() => router.push('/operator/analyze')}
-          className="w-full flex items-center justify-center gap-3 bg-gold text-[#1A1A1A] rounded-2xl py-5 font-heading text-xl uppercase tracking-wider active:scale-[0.98] transition-transform"
+          className="w-full flex items-center justify-center gap-3 bg-gold text-[#1A1A1A] rounded-2xl font-heading text-[18px] uppercase tracking-wider active:scale-[0.98] transition-transform"
+          style={{ height: 64 }}
         >
           <Camera size={20} />
           Analyze a Tree
         </button>
+
+        {/* Secondary buttons */}
+        <div className="flex gap-3 w-full mt-4">
+          <button
+            onClick={() => router.push('/operator/analyze?mode=library')}
+            className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3 font-body text-[13px] text-white active:scale-[0.98] transition-transform"
+            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)' }}
+          >
+            <ImagePlus size={16} className="text-white" />
+            Upload from Library
+          </button>
+          <button
+            onClick={() => router.push('/admin')}
+            className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3 font-body text-[13px] text-white active:scale-[0.98] transition-transform"
+            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)' }}
+          >
+            <ClipboardList size={16} className="text-white" />
+            Recent Jobs
+          </button>
+        </div>
       </div>
 
       {/* Bottom stats bar */}
       <div className="absolute bottom-0 left-0 right-0 pb-6 px-6">
-        <div className="flex items-center" style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1rem' }}>
+        <div className="flex items-start gap-4">
           <StatItem label="Today" value={stats?.today ?? null} />
-          <div className="w-px h-8 bg-white/20 mx-2" />
+          <div className="w-px h-12 bg-white/20 mt-3" />
           <StatItem label="This Week" value={stats?.week ?? null} />
-          <div className="w-px h-8 bg-white/20 mx-2" />
+          <div className="w-px h-12 bg-white/20 mt-3" />
           <StatItem label="Total" value={stats?.total ?? null} />
         </div>
       </div>

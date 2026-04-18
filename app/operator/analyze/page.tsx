@@ -50,6 +50,43 @@ const ANALYZE_MESSAGES = [
 const MAX_PHOTOS = 5
 const MAX_SIZE_BYTES = 10 * 1024 * 1024
 
+// ─── Image quality validation ────────────────────────────────────────────────
+
+async function validateImageQuality(file: File): Promise<{ valid: boolean; reason?: string }> {
+  if (file.size < 100 * 1024) {
+    return {
+      valid: false,
+      reason: 'This photo is too small/compressed to analyze accurately. Please take a new photo.',
+    }
+  }
+
+  return new Promise((resolve) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      if (img.width < 400 || img.height < 400) {
+        resolve({ valid: false, reason: 'Photo is too small. Please take a clearer, closer photo.' })
+        return
+      }
+      const ratio = img.width / img.height
+      if (ratio > 4 || ratio < 0.25) {
+        resolve({ valid: false, reason: 'Photo dimensions look unusual. Please take a standard photo.' })
+        return
+      }
+      resolve({ valid: true })
+    }
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      resolve({ valid: false, reason: 'Could not read this image file.' })
+    }
+
+    img.src = url
+  })
+}
+
 // ─── Upload helper ────────────────────────────────────────────────────────────
 
 interface UploadCallbacks {
@@ -144,7 +181,6 @@ export default function OperatorAnalyzePage() {
   const [quickNotes, setQuickNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
-  const [detailsVisible, setDetailsVisible] = useState(false)
 
   photosRef.current = photos
 
@@ -178,30 +214,30 @@ export default function OperatorAnalyzePage() {
       errorMessage: null,
     }))
 
-    setPhotos(prev => {
-      const updated = [...prev, ...newItems]
-      if (updated.length > 0 && !detailsVisible) setDetailsVisible(true)
-      return updated
-    })
+    setPhotos(prev => [...prev, ...newItems])
 
     newItems.forEach(item => {
-      uploadFile(item.file, {
-        onPhase: (phase) => setPhotos(prev => prev.map(p => p.id === item.id ? { ...p, phase } : p)),
-        onProgress: (progress) => setPhotos(prev => prev.map(p => p.id === item.id ? { ...p, progress } : p)),
-      })
-        .then(url => {
+      void (async () => {
+        const validation = await validateImageQuality(item.file)
+        if (!validation.valid) {
+          setPhotos(prev => prev.map(p =>
+            p.id === item.id ? { ...p, phase: 'error', errorMessage: validation.reason ?? 'Invalid photo' } : p
+          ))
+          return
+        }
+        try {
+          const url = await uploadFile(item.file, {
+            onPhase: (phase) => setPhotos(prev => prev.map(p => p.id === item.id ? { ...p, phase } : p)),
+            onProgress: (progress) => setPhotos(prev => prev.map(p => p.id === item.id ? { ...p, progress } : p)),
+          })
           setPhotos(prev => prev.map(p => p.id === item.id ? { ...p, url, progress: 100, phase: 'done' } : p))
-        })
-        .catch((err: unknown) => {
+        } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : 'Upload failed'
           setPhotos(prev => prev.map(p => p.id === item.id ? { ...p, errorMessage: msg, phase: 'error' } : p))
-        })
+        }
+      })()
     })
-  }, [detailsVisible])
-
-  useEffect(() => {
-    if (photos.length > 0) setDetailsVisible(true)
-  }, [photos.length])
+  }, [])
 
   const removePhoto = (id: string) => {
     setPhotos(prev => {
@@ -390,14 +426,11 @@ export default function OperatorAnalyzePage() {
           </div>
         )}
 
-        {/* ── Phase 2: Quick Details ── */}
-        <div
-          className={`mt-8 transition-all duration-500 ease-out ${
-            detailsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
-          }`}
-        >
+        {/* ── Quick Details ── */}
+        <hr className="border-gray-200 my-6" />
+        <div className="mt-0">
           <h2 className="font-heading text-[20px] text-green-dark mb-1">Quick Details</h2>
-          <p className="text-gray-400 font-body text-[13px] mb-5">Optional but improves accuracy.</p>
+          <p className="text-gray-400 font-body text-[13px] mb-5">Optional — improves accuracy.</p>
 
           {/* Tree Height */}
           <div className="mb-5">
@@ -524,17 +557,20 @@ export default function OperatorAnalyzePage() {
               'w-full flex items-center justify-center gap-3 rounded-xl py-4 font-heading text-[18px] uppercase tracking-wide transition-all',
               allUploaded && !isSubmitting
                 ? 'bg-gold text-[#1A1A1A] active:scale-[0.98]'
-                : 'bg-gray-200 text-gray-400 cursor-not-allowed',
+                : 'cursor-not-allowed',
             ].join(' ')}
+            style={!allUploaded || isSubmitting ? { background: '#E5E7EB', color: '#9CA3AF' } : {}}
           >
             {isSubmitting ? (
               <Loader2 size={20} className="animate-spin" />
             ) : (
               <Cpu size={20} />
             )}
-            {allUploaded
+            {isSubmitting
+              ? 'Analyzing…'
+              : allUploaded
               ? `Analyze Tree · ${photos.length} photo${photos.length !== 1 ? 's' : ''}`
-              : 'Analyze Tree'}
+              : 'Add photos to analyze'}
           </button>
         </div>
       </div>

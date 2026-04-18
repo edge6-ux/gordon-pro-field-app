@@ -6,7 +6,7 @@ import type { TreeSubmission, AIResult, Flag } from '@/lib/types'
 import {
   AlertTriangle, CheckCircle, Info, X, ChevronLeft, ChevronRight,
   Share2, Printer, Phone, Loader2, Trees, MapPin, Ruler, ArrowRight,
-  Camera,
+  Camera, TreePine,
 } from 'lucide-react'
 
 // ─── Scroll Reveal ────────────────────────────────────────────────────────────
@@ -154,7 +154,10 @@ function SpeciesCard({ result }: { result: AIResult }) {
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-white/60 text-xs uppercase tracking-widest mb-1">Identified Species</p>
-              <h2 className="font-heading text-2xl text-white leading-tight">{result.species_name}</h2>
+              <h2 className="font-heading text-2xl text-white leading-tight flex items-center gap-2">
+                <TreePine size={20} className="text-white/70 shrink-0" />
+                {result.species_name}
+              </h2>
             </div>
             <span className={`text-xs font-semibold px-2.5 py-1 rounded-full mt-1 ${confidenceBadge[result.species_confidence]}`}>
               {result.species_confidence} confidence
@@ -429,6 +432,14 @@ function CustomerCTA() {
 
 const STATUS_OPTIONS = ['pending', 'reviewed', 'quoted', 'scheduled', 'completed'] as const
 
+const STATUS_BORDER: Record<TreeSubmission['status'], string> = {
+  pending:   '#D1D5DB',
+  reviewed:  '#3B82F6',
+  quoted:    '#C8922A',
+  scheduled: '#22C55E',
+  completed: '#1C3A2B',
+}
+
 function OperatorSaveJob({ submission }: { submission: TreeSubmission }) {
   const [status, setStatus] = useState(submission.status)
   const [saving, setSaving] = useState(false)
@@ -451,68 +462,135 @@ function OperatorSaveJob({ submission }: { submission: TreeSubmission }) {
 
   return (
     <ScrollReveal>
-      <div className="bg-white rounded-2xl border border-gray-200 px-6 py-5 print:hidden">
-        <h3 className="font-heading text-lg text-green-dark mb-4">Job Status</h3>
-        <div className="flex flex-wrap items-center gap-3">
-          <select
-            value={status}
-            onChange={e => setStatus(e.target.value as TreeSubmission['status'])}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-dark"
-          >
-            {STATUS_OPTIONS.map(s => (
-              <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-            ))}
-          </select>
+      <div
+        className="bg-white rounded-2xl px-6 py-5 print:hidden"
+        style={{ border: '1px solid #E5E7EB', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
+      >
+        <p className="font-body text-[11px] uppercase tracking-widest mb-1" style={{ color: '#C8922A' }}>
+          Status
+        </p>
+        <h3 className="font-heading text-[20px] text-green-dark mb-4">Job Status</h3>
+
+        <select
+          value={status}
+          onChange={e => setStatus(e.target.value as TreeSubmission['status'])}
+          className="w-full rounded-lg px-3 text-[15px] text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-dark mb-3"
+          style={{
+            height: 48,
+            border: `1.5px solid ${STATUS_BORDER[status]}`,
+            transition: 'border-color 200ms',
+          }}
+        >
+          {STATUS_OPTIONS.map(s => (
+            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+          ))}
+        </select>
+
+        <div className="flex gap-2">
           <button
             onClick={handleSave}
             disabled={saving}
-            className="inline-flex items-center gap-2 bg-green-dark text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-mid transition-colors disabled:opacity-50"
+            className="flex-1 inline-flex items-center justify-center gap-2 bg-green-dark text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-green-mid transition-colors disabled:opacity-50"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-            {saved ? 'Saved!' : saving ? 'Saving…' : 'Save Status'}
+            {saved ? 'Saved ✓' : saving ? 'Saving…' : 'Save Status'}
           </button>
-          <a
-            href={`tel:${submission.customer_phone}`}
-            className="inline-flex items-center gap-2 text-green-dark text-sm font-medium hover:underline"
-          >
-            <Phone className="w-4 h-4" />
-            {submission.customer_phone}
-          </a>
+          {submission.customer_phone && (
+            <a
+              href={`tel:${submission.customer_phone}`}
+              className="inline-flex items-center justify-center gap-2 border border-gray-200 text-green-dark px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+            >
+              <Phone className="w-4 h-4" />
+              Call Customer
+            </a>
+          )}
         </div>
       </div>
     </ScrollReveal>
   )
 }
 
-// ─── Success Header ───────────────────────────────────────────────────────────
+// ─── Assessment Header ────────────────────────────────────────────────────────
 
-function heightLabel(h: string) {
-  const map: Record<string, string> = {
-    under_20ft: 'Under 20ft',
-    '20_40ft': '20–40ft',
-    '40_60ft': '40–60ft',
-    over_60ft: 'Over 60ft',
-  }
-  return map[h] ?? h
-}
-
-function SuccessHeader({ submission }: { submission: TreeSubmission }) {
+function AssessmentHeader({ submission }: { submission: TreeSubmission }) {
   const isCustomer = submission.source === 'customer'
   return (
-    <div className="text-center mb-8 print:mb-4">
-      {isCustomer && (
-        <div className="inline-flex items-center gap-2 bg-green-100 text-green-800 text-sm font-medium px-4 py-1.5 rounded-full mb-4">
-          <CheckCircle className="w-4 h-4" />
-          Submission received
+    <div
+      className="rounded-2xl p-5 mb-1 flex items-center justify-between print:hidden"
+      style={{ background: '#1C3A2B' }}
+    >
+      <div>
+        <p className="font-body text-[11px] uppercase tracking-widest mb-1" style={{ color: '#9FE1CB' }}>
+          Tree Assessment
+        </p>
+        <h1 className="font-heading text-[22px] text-white leading-tight">
+          {isCustomer ? 'Assessment Complete' : 'Field Analysis Complete'}
+        </h1>
+        <p className="font-body text-[12px] mt-1" style={{ color: 'rgba(255,255,255,0.5)' }}>
+          Ref #{submission.id.slice(0, 8).toUpperCase()}
+        </p>
+      </div>
+      <CheckCircle size={28} style={{ color: '#C8922A', flexShrink: 0 }} />
+    </div>
+  )
+}
+
+// ─── Quality Issue Banner ─────────────────────────────────────────────────────
+
+function QualityIssueBanner({ description, source }: { description: string; source: TreeSubmission['source'] }) {
+  const [showTips, setShowTips] = useState(false)
+  const reason = description.replace(/^\[QUALITY_ISSUE\]:\s*/i, '')
+
+  return (
+    <div
+      className="rounded-xl p-5 mb-1"
+      style={{
+        background: '#FAEEDA',
+        border: '1px solid #FAC775',
+        borderLeft: '4px solid #C8922A',
+      }}
+    >
+      <div className="flex items-start gap-3">
+        <Camera size={24} style={{ color: '#C8922A', flexShrink: 0, marginTop: 2 }} />
+        <div className="flex-1">
+          <p className="font-body font-bold text-[16px]" style={{ color: '#633806' }}>
+            Better Photos Needed
+          </p>
+          <p className="font-body text-[14px] mt-1 leading-relaxed" style={{ color: '#854F0B' }}>
+            {reason}
+          </p>
+          <button
+            onClick={() => setShowTips(t => !t)}
+            className="font-body text-[13px] mt-2 underline"
+            style={{ color: '#C8922A' }}
+          >
+            {showTips ? 'Hide tips' : 'Show photo tips'}
+          </button>
+          {showTips && (
+            <ul className="mt-3 space-y-1">
+              {[
+                'Stand back to show the full tree',
+                'Include the trunk base in frame',
+                'Shoot in good natural lighting',
+                'Take 2-3 angles for best results',
+              ].map(tip => (
+                <li key={tip} className="font-body text-[13px] flex items-center gap-2" style={{ color: '#854F0B' }}>
+                  <CheckCircle size={13} style={{ color: '#C8922A', flexShrink: 0 }} />
+                  {tip}
+                </li>
+              ))}
+            </ul>
+          )}
+          <a
+            href={source === 'operator' ? '/operator/analyze' : '/submit'}
+            className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl py-3 font-heading text-[15px] uppercase tracking-wide text-white transition-colors"
+            style={{ background: '#C8922A', display: 'flex' }}
+          >
+            <Camera size={16} />
+            Submit New Photos
+          </a>
         </div>
-      )}
-      <h1 className="font-heading text-3xl text-green-dark leading-tight">
-        {isCustomer ? 'Your Tree Assessment' : `Assessment — ${submission.customer_name}`}
-      </h1>
-      <p className="text-gray-500 text-sm mt-2">
-        {submission.property_address}
-        {submission.tree_height && ` · ${heightLabel(submission.tree_height)}`}
-      </p>
+      </div>
     </div>
   )
 }
@@ -562,9 +640,12 @@ export default function ResultsContent({ submission: initial }: { submission: Tr
     setSubmission(updated)
   }, [])
 
+  const result = submission.ai_result
+  const isQualityIssue = result?.species_description?.toLowerCase().startsWith('[quality_issue]:') ?? false
+
   return (
-    <main className="max-w-2xl mx-auto px-4 py-10 space-y-5">
-      <SuccessHeader submission={submission} />
+    <main className="max-w-2xl mx-auto px-4 py-10 space-y-4">
+      <AssessmentHeader submission={submission} />
 
       {!hasResult ? (
         <LoadingPoller id={submission.id} onResult={handleResult} />
@@ -573,20 +654,26 @@ export default function ResultsContent({ submission: initial }: { submission: Tr
           <NoTreeDetected submission={submission} />
           <PhotosSection urls={submission.photo_urls} />
         </>
+      ) : isQualityIssue ? (
+        <>
+          <QualityIssueBanner description={result!.species_description} source={submission.source} />
+          <PhotosSection urls={submission.photo_urls} />
+          {submission.source === 'operator' && <OperatorSaveJob submission={submission} />}
+        </>
       ) : (
         <>
-          {submission.ai_result && <FlagAlerts flags={submission.ai_result.flags} />}
-          {submission.ai_result && <SpeciesCard result={submission.ai_result} />}
-          {submission.ai_result && <CharacteristicsCard items={submission.ai_result.key_characteristics} />}
-          {submission.ai_result && <SiteConditionsCard items={submission.ai_result.site_considerations} />}
-          {submission.ai_result && <CrewTipsCard tips={submission.ai_result.crew_tips} />}
+          {result && <FlagAlerts flags={result.flags} />}
+          {result && <SpeciesCard result={result} />}
+          {result && <CharacteristicsCard items={result.key_characteristics} />}
+          {result && <SiteConditionsCard items={result.site_considerations} />}
+          {result && <CrewTipsCard tips={result.crew_tips} />}
           <PhotosSection urls={submission.photo_urls} />
           {submission.source === 'customer' && <WhatHappensNext />}
           {submission.source === 'operator' && <OperatorSaveJob submission={submission} />}
           {submission.source === 'customer' && <CustomerCTA />}
-          {submission.ai_result && (
+          {result && (
             <p className="text-center text-xs text-gray-300 print:text-gray-400">
-              AI analysis generated {new Date(submission.ai_result.generated_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
+              AI analysis generated {new Date(result.generated_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
             </p>
           )}
         </>

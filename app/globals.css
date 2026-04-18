@@ -87,3 +87,16 @@
 .flash-new {
   animation: flashNew 3s ease-out forwards;
 }
+
+/* ── Operator: pulse border animation ── */
+@keyframes pulse-border {
+  0%, 100% { border-color: rgba(200,146,42,0.4); }
+  50%       { border-color: rgba(200,146,42,0.8); }
+}
+.animate-pulse-border {
+  animation: pulse-border 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse-border { animation: none; }
+}
