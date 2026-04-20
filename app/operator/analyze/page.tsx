@@ -61,7 +61,7 @@ async function validateImageQuality(file: File): Promise<{ valid: boolean; reaso
   }
 
   return new Promise((resolve) => {
-    const img = new Image()
+    const img = document.createElement('img')
     const url = URL.createObjectURL(file)
 
     img.onload = () => {
@@ -218,7 +218,10 @@ export default function OperatorAnalyzePage() {
 
     newItems.forEach(item => {
       void (async () => {
-        const validation = await validateImageQuality(item.file)
+        let validation: { valid: boolean; reason?: string } = { valid: true }
+        try {
+          validation = await validateImageQuality(item.file)
+        } catch { /* skip validation on error, let upload proceed */ }
         if (!validation.valid) {
           setPhotos(prev => prev.map(p =>
             p.id === item.id ? { ...p, phase: 'error', errorMessage: validation.reason ?? 'Invalid photo' } : p

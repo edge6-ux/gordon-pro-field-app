@@ -7,7 +7,7 @@ import { Lock, Loader2 } from 'lucide-react'
 
 const SESSION_KEY = 'gp_crew_authenticated'
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000
-const PIN_LENGTH = 6
+const PIN_LENGTH = 4
 
 type AuthState = 'checking' | 'gate' | 'authorized'
 

@@ -12,7 +12,10 @@
       "Bash(git remote *)",
       "Bash(git branch *)",
       "Bash(git push *)",
-      "Bash(xargs sed *)"
+      "Bash(xargs sed *)",
+      "Bash(xargs grep *)",
+      "Bash(npx next *)",
+      "Bash(npm --version)"
     ]
   }
 }

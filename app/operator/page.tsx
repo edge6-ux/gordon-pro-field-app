@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { Camera, ImagePlus, ClipboardList } from 'lucide-react'
+import { Camera, ClipboardList } from 'lucide-react'
 
 type Stats = { today: number; week: number; total: number }
 
@@ -40,7 +40,7 @@ export default function OperatorPage() {
     <div className="relative min-h-[calc(100svh-3.5rem)] bg-green-dark flex flex-col items-center justify-center px-6 overflow-hidden">
 
       {/* Top bar */}
-      <div className="absolute top-0 left-0 right-0 pt-4 px-4 flex items-center justify-between">
+      <div className="absolute top-0 left-0 right-0 pt-4 px-4 flex items-center justify-start">
         <div className="relative w-12 h-12">
           <Image
             src="/images/fieldapp.png"
@@ -50,23 +50,22 @@ export default function OperatorPage() {
             sizes="48px"
           />
         </div>
-        <div className="flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-3 py-1">
-          <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-          <span className="text-white text-[13px] font-body">Crew Mode</span>
-        </div>
       </div>
 
       {/* Main content */}
       <div className="flex flex-col items-center text-center w-full max-w-xs pb-28 pt-16">
         <div
-          className="w-24 h-24 rounded-2xl flex items-center justify-center mb-6 animate-pulse-border"
+          className="animate-pulse-border flex items-center justify-center mb-8"
           style={{
-            background: 'transparent',
-            border: '2px solid rgba(200,146,42,0.4)',
-            borderRadius: '16px',
+            width: 96,
+            height: 96,
+            borderRadius: 24,
+            borderWidth: 2,
+            borderStyle: 'solid',
+            backgroundColor: 'transparent',
           }}
         >
-          <Camera className="text-gold" size={40} />
+          <Camera size={40} color="#C8922A" strokeWidth={1.5} />
         </div>
 
         <h1 className="font-heading text-[36px] text-white mb-3 leading-tight">Analyze a Tree</h1>
@@ -84,25 +83,15 @@ export default function OperatorPage() {
           Analyze a Tree
         </button>
 
-        {/* Secondary buttons */}
-        <div className="flex gap-3 w-full mt-4">
-          <button
-            onClick={() => router.push('/operator/analyze?mode=library')}
-            className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3 font-body text-[13px] text-white active:scale-[0.98] transition-transform"
-            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)' }}
-          >
-            <ImagePlus size={16} className="text-white" />
-            Upload from Library
-          </button>
-          <button
-            onClick={() => router.push('/admin')}
-            className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3 font-body text-[13px] text-white active:scale-[0.98] transition-transform"
-            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)' }}
-          >
-            <ClipboardList size={16} className="text-white" />
-            Recent Jobs
-          </button>
-        </div>
+        {/* Secondary button */}
+        <button
+          onClick={() => router.push('/admin')}
+          className="w-full flex items-center justify-center gap-2 rounded-xl py-3 font-body text-[13px] text-white active:scale-[0.98] transition-transform mt-4"
+          style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)' }}
+        >
+          <ClipboardList size={16} className="text-white" />
+          Recent Jobs
+        </button>
       </div>
 
       {/* Bottom stats bar */}

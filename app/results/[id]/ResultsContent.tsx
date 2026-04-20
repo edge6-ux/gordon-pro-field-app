@@ -178,7 +178,7 @@ function CharacteristicsCard({ items }: { items: string[] }) {
   if (!items.length) return null
   return (
     <ScrollReveal>
-      <div className="bg-white rounded-2xl border border-gray-200 px-6 py-5">
+      <div className="bg-white rounded-2xl border border-gray-200 px-6 py-5" style={{ borderLeft: '4px solid #1C3A2B' }}>
         <h3 className="font-heading text-lg text-green-dark mb-4 flex items-center gap-2">
           <Trees className="w-5 h-5 text-gold" />
           Key Characteristics
@@ -202,7 +202,7 @@ function SiteConditionsCard({ items }: { items: string[] }) {
   if (!items.length) return null
   return (
     <ScrollReveal>
-      <div className="bg-white rounded-2xl border border-gray-200 px-6 py-5">
+      <div className="bg-white rounded-2xl border border-gray-200 px-6 py-5" style={{ borderLeft: '4px solid #1C3A2B' }}>
         <h3 className="font-heading text-lg text-green-dark mb-4 flex items-center gap-2">
           <MapPin className="w-5 h-5 text-gold" />
           Site Considerations

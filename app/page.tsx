@@ -104,21 +104,30 @@ export default function HomePage() {
       </section>
 
       {/* ── CARD (overlaps hero) ── */}
-      <section className="bg-off-white pb-16">
-        <div className="max-w-[420px] mx-auto px-4">
-          <Link
-            href="/submit"
-            className="block -mt-16 relative z-10"
-            style={{
-              opacity: cardVisible ? 1 : 0,
-              transform: cardVisible ? 'translateY(0)' : 'translateY(16px)',
-              transition: 'opacity 400ms ease, transform 400ms ease',
-              transitionDelay: '100ms',
-            }}
-          >
+      <div style={{ backgroundColor: '#F5F2ED', paddingBottom: '48px' }}>
+        <div
+          style={{
+            maxWidth: '420px',
+            margin: '0 auto',
+            marginTop: '-64px',
+            padding: '0 16px',
+            position: 'relative',
+            zIndex: 10,
+            opacity: cardVisible ? 1 : 0,
+            transform: cardVisible ? 'translateY(0)' : 'translateY(16px)',
+            transition: 'opacity 400ms ease, transform 400ms ease',
+            transitionDelay: '100ms',
+          }}
+        >
+          <Link href="/submit" className="block">
             <div
-              className="bg-white rounded-3xl p-8 cursor-pointer hover:scale-[1.01] transition-transform duration-200"
-              style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
+              style={{
+                backgroundColor: 'white',
+                borderRadius: '24px',
+                padding: '32px',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
+                cursor: 'pointer',
+              }}
             >
               {/* Badge */}
               <div className="flex justify-center mb-6">
@@ -170,7 +179,7 @@ export default function HomePage() {
             </div>
           </Link>
         </div>
-      </section>
+      </div>
 
       {/* ── HOW IT WORKS ── */}
       <section className="bg-white py-16">
