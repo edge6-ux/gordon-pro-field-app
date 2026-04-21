@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getJobByReference } from '@/lib/supabase'
+import { getJobByReference, supabaseAdmin } from '@/lib/supabase'
 import { last4Digits } from '@/lib/jobs'
+import type { Job } from '@/lib/types'
 
 export async function POST(request: NextRequest) {
   let body: { referenceCode?: string; phone?: string }
@@ -16,7 +17,16 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const job = await getJobByReference(body.referenceCode)
+    const { data: jobData, error: jobError } = await supabaseAdmin
+      .from('jobs')
+      .select('*')
+      .eq('reference_code', body.referenceCode.toUpperCase())
+      .single()
+
+    console.log('Raw job data:', jobData)
+    console.log('Raw job error:', jobError)
+
+    const job = jobData as Job | null
 
     console.log('Job found:', job ? 'yes' : 'no')
     console.log('Job phone:', job?.customer_phone)
