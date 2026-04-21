@@ -16,7 +16,15 @@
       "Bash(xargs grep *)",
       "Bash(npx next *)",
       "Bash(npm --version)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(git reset *)",
+      "Bash(git commit -m 'Fix email: remove reference_code gate, strip trailing slash from APP_URL *)",
+      "Bash(git commit -m 'Add /api/test-email diagnostic endpoint *)",
+      "Bash(git commit -m 'Temp: use onboarding@resend.dev until domain is verified *)",
+      "Bash(git commit -m 'Fix test-email endpoint FROM address *)",
+      "Bash(git commit -m 'Add logo to email header *)",
+      "Bash(git commit -m 'Add customer results page and CopyButton component *)",
+      "Bash(git commit -m 'Redirect customer submissions to /results/customer/[id] *)"
     ]
   }
 }

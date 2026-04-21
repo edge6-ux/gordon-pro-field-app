@@ -15,20 +15,9 @@ export function getServiceClient() {
 
 export type { TreeSubmission }
 
-let _supabaseAdmin: ReturnType<typeof createClient> | null = null
-
-export function getSupabaseAdmin() {
-  if (!_supabaseAdmin) {
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-    if (!serviceKey) throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set')
-    _supabaseAdmin = createClient(supabaseUrl, serviceKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    })
-  }
-  return _supabaseAdmin
-}
-
-export const supabaseAdmin = getSupabaseAdmin()
+export const supabaseAdmin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+  auth: { autoRefreshToken: false, persistSession: false },
+})
 
 export async function getJobWithSubmission(jobId: string): Promise<Job | null> {
   const { data, error } = await supabaseAdmin
