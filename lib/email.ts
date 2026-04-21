@@ -110,6 +110,13 @@ function emailWrapper(bodyHtml: string): string {
   <div class="wrapper">
     <div class="container">
       <div class="header">
+        <img
+          src="${process.env.NEXT_PUBLIC_APP_URL}/images/fieldapp.png"
+          alt="Gordon Pro Tree Service"
+          width="72"
+          height="72"
+          style="display:block;margin:0 auto 10px;width:72px;height:72px;object-fit:contain;"
+        />
         <div class="header-company">Gordon Pro Tree Service</div>
       </div>
       <div class="gold-bar"></div>
