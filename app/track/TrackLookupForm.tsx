@@ -25,8 +25,8 @@ export default function TrackLookupForm() {
       })
 
       if (res.ok) {
-        const data = await res.json() as { referenceCode: string }
-        router.push(`/track/${data.referenceCode}`)
+        const data = await res.json() as { referenceCode: string; submissionId: string }
+        router.push(`/results/customer/${data.submissionId}`)
       } else if (res.status === 404) {
         setError(
           'No job found with that reference number and phone. Please check and try again, or call us at (770) 271-6072.'

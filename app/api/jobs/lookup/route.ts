@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 })
     }
 
-    return NextResponse.json({ referenceCode: job.reference_code })
+    return NextResponse.json({ referenceCode: job.reference_code, submissionId: job.submission_id })
   } catch (err) {
     console.error('[POST /api/jobs/lookup]', err)
     return NextResponse.json({ error: 'Failed to look up job' }, { status: 500 })
