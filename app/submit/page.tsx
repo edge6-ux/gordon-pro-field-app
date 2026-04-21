@@ -628,7 +628,7 @@ export default function SubmitPage() {
         if (!analyzeRes.ok) throw new Error('AI analysis failed')
       }
 
-      router.push(`/results/${id}`)
+      router.push(`/results/customer/${id}`)
     } catch (err) {
       setErrors({
         submit: err instanceof Error ? err.message : 'Something went wrong. Please try again.',
