@@ -40,7 +40,7 @@ export default function OperatorPage() {
     <div className="relative min-h-[calc(100svh-3.5rem)] bg-green-dark flex flex-col items-center justify-center px-6 overflow-hidden">
 
       {/* Top bar */}
-      <div className="absolute top-0 left-0 right-0 pt-4 px-4 flex items-center justify-start">
+      <div className="absolute top-0 left-0 right-0 pt-4 px-4 flex items-center justify-between">
         <div className="relative w-12 h-12">
           <Image
             src="/images/fieldapp.png"
@@ -50,6 +50,13 @@ export default function OperatorPage() {
             sizes="48px"
           />
         </div>
+        <button
+          onClick={() => router.push('/admin')}
+          className="font-body text-[12px] text-white/50 hover:text-white/80 transition-colors px-3 py-1.5 rounded-lg"
+          style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}
+        >
+          Admin
+        </button>
       </div>
 
       {/* Main content */}
