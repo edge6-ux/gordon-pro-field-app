@@ -111,20 +111,22 @@ export async function POST(request: NextRequest) {
       body.source !== 'operator'
     ) {
       try {
+        // Try to get the DB-generated reference code; fall back to ID slice
         const { data: row } = await supabase
           .from('submissions')
           .select('reference_code')
           .eq('id', id)
           .single()
 
-        if (row?.reference_code) {
-          await sendSubmissionConfirmed({
-            customerName: body.customerName || 'there',
-            customerEmail: body.customerEmail,
-            referenceCode: row.reference_code,
-            trackingUrl: `${process.env.NEXT_PUBLIC_APP_URL}/track/${row.reference_code}`,
-          })
-        }
+        const referenceCode = row?.reference_code ?? id.slice(0, 8).toUpperCase()
+        const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/+$/, '')
+
+        await sendSubmissionConfirmed({
+          customerName: body.customerName || 'there',
+          customerEmail: body.customerEmail,
+          referenceCode,
+          trackingUrl: `${appUrl}/track/${referenceCode}`,
+        })
       } catch (emailError) {
         // Never block the submission response if email fails
         console.error('Email 1 failed:', emailError)
