@@ -12,7 +12,7 @@ export async function GET() {
   const resend = new Resend(apiKey)
 
   const { data, error } = await resend.emails.send({
-    from: 'Gordon Pro Tree Service <jobs@gordonprotreeservice.com>',
+    from: 'Gordon Pro Tree Service <onboarding@resend.dev>',
     to: 'edgerrinwashington@gmail.com',
     subject: 'Gordon Pro — email test',
     html: '<p>If you can read this, Resend is working correctly.</p>',
