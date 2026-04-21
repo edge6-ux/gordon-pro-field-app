@@ -907,11 +907,11 @@ export default function ResultsContent({
           {referenceCode && submission.source === 'customer' && (
             <ReferenceCard code={referenceCode} />
           )}
-          {result && <FlagAlerts flags={result.flags} />}
+          {result && submission.source === 'operator' && <FlagAlerts flags={result.flags} />}
           {result && <SpeciesCard result={result} />}
           {result && <CharacteristicsCard items={result.key_characteristics} />}
           {result && <SiteConditionsCard items={result.site_considerations} />}
-          {result && <CrewTipsCard tips={result.crew_tips} />}
+          {result && submission.source === 'operator' && <CrewTipsCard tips={result.crew_tips} />}
           <PhotosSection urls={submission.photo_urls} />
           {submission.source === 'customer' && <WhatHappensNext />}
           {submission.source === 'operator' && (

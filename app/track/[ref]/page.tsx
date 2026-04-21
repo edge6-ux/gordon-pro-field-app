@@ -291,7 +291,7 @@ export default async function TrackStatusPage({ params }: Props) {
           <hr style={{ margin: '16px 0', borderColor: '#E5E7EB' }} />
 
           <Link
-            href={`/results/${job.submission_id}`}
+            href={`/results/customer/${job.submission_id}`}
             style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#C8922A', fontSize: 14 }}
             className="font-body"
           >
