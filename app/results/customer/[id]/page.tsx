@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { redirect } from 'next/navigation'
 import Image from 'next/image'
 import { CheckCircle, AlertTriangle, Info, Zap, Scissors, Shield, CloudLightning, TreePine, ArrowRight, Check, Sparkles, Camera } from 'lucide-react'
