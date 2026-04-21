@@ -156,7 +156,7 @@ async function sendEmailNotification(submission: Omit<TreeSubmission, 'ai_result
   }
 
   await resend.emails.send({
-    from: 'Gordon Pro Field App <noreply@gordonprotreeservice.com>',
+    from: 'Gordon Pro Field App <onboarding@resend.dev>',
     to: [notifyEmail],
     subject: `New assessment request — ${submission.customer_name}`,
     html: `

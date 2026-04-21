@@ -2,7 +2,7 @@ import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-const FROM = 'jobs@gordonprotreeservice.com'
+const FROM = 'onboarding@resend.dev'
 const COMPANY = 'Gordon Pro Tree Service'
 const PHONE = '(770) 271-6072'
 const PHONE_LINK = 'tel:7702716072'
