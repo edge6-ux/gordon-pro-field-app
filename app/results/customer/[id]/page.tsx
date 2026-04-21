@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation'
 import Image from 'next/image'
-import { CheckCircle, AlertTriangle, Info, Zap, Scissors, Shield, CloudLightning, TreePine, ArrowRight } from 'lucide-react'
+import { CheckCircle, AlertTriangle, Info, Zap, Scissors, Shield, CloudLightning, TreePine, ArrowRight, Check, Sparkles, Camera } from 'lucide-react'
 import { supabaseAdmin } from '@/lib/supabase'
-import type { TreeSubmission, AIResult, Flag } from '@/lib/types'
+import type { TreeSubmission, AIResult, Flag, Job } from '@/lib/types'
 import CopyButton from '@/components/results/CopyButton'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -63,6 +63,31 @@ function getRecommendationText(serviceType: string | null, hasStopFlag: boolean)
     ?? "Our team will review your request and reach out shortly to discuss the best approach for your property."
 }
 
+// ─── Status pipeline data ─────────────────────────────────────────────────────
+
+const STATUS_STEPS: { key: string; label: string }[] = [
+  { key: 'submitted',   label: 'Received' },
+  { key: 'reviewed',    label: 'Reviewed' },
+  { key: 'assigned',    label: 'Scheduled' },
+  { key: 'in_progress', label: 'In Progress' },
+  { key: 'complete',    label: 'Complete' },
+]
+
+const STATUS_DESCRIPTIONS: Record<string, string> = {
+  submitted:   "We've received your request and will review it shortly.",
+  reviewed:    "We've reviewed your request and will be in touch soon.",
+  assigned:    "Your job has been scheduled. We'll confirm details shortly.",
+  in_progress: "Our crew is on site.",
+  complete:    "Your job is complete. Thank you for choosing Gordon Pro!",
+}
+
+function getCallTimeframe(urgency: string): string {
+  if (urgency === 'Emergency') return 'within the hour'
+  if (urgency === 'Soon') return 'within a few hours'
+  if (urgency === 'Routine') return 'within 1 business day'
+  return 'shortly'
+}
+
 // ─── Metadata ─────────────────────────────────────────────────────────────────
 
 export async function generateMetadata() {
@@ -89,6 +114,14 @@ export default async function CustomerResultsPage({
 
   if (!data) redirect('/')
 
+  const { data: jobData } = await supabaseAdmin
+    .from('jobs')
+    .select('*')
+    .eq('submission_id', params.id)
+    .single()
+
+  const job = jobData as Job | null
+
   const submission = data as SubmissionRow
   const aiResult   = submission.ai_result as AIResult | null
   const hasAI      = aiResult !== null && aiResult !== undefined
@@ -109,6 +142,9 @@ export default async function CustomerResultsPage({
         .sort((a, b) => FLAG_ORDER[a.severity] - FLAG_ORDER[b.severity])
         .slice(0, 2)
     : []
+
+  const isComplete = job?.status === 'complete'
+  const stepIndex  = job ? STATUS_STEPS.findIndex(s => s.key === job.status) : -1
 
   return (
     <div className="min-h-screen bg-[#F5F2ED]">
@@ -160,6 +196,122 @@ export default async function CustomerResultsPage({
             <CopyButton code={referenceCode} />
           </div>
         </div>
+
+        {/* ─── STATUS SECTION ─── */}
+        {job && (
+          <div
+            className="bg-white rounded-2xl p-6"
+            style={{ border: '1px solid #E5E7EB', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
+          >
+            <p
+              className="font-body text-[11px] uppercase mb-3"
+              style={{ color: '#888780', letterSpacing: '0.08em' }}
+            >
+              Job Status
+            </p>
+
+            {/* Mobile: vertical pipeline */}
+            <div className="flex flex-col sm:hidden">
+              {STATUS_STEPS.map((step, i) => {
+                const isDone    = i < stepIndex
+                const isCurrent = i === stepIndex
+                const isLast    = i === STATUS_STEPS.length - 1
+                return (
+                  <div key={step.key} className="flex items-start gap-3">
+                    <div className="flex flex-col items-center" style={{ width: 28 }}>
+                      <div
+                        className="shrink-0 flex items-center justify-center rounded-full"
+                        style={{
+                          width: 28, height: 28,
+                          background: isDone ? '#1C3A2B' : isCurrent ? '#C8922A' : 'white',
+                          border: (!isDone && !isCurrent) ? '2px solid #E5E7EB' : 'none',
+                          boxShadow: isCurrent ? '0 0 0 4px rgba(200,146,42,0.2)' : 'none',
+                        }}
+                      >
+                        {isDone
+                          ? <Check size={12} color="white" />
+                          : isCurrent
+                          ? <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'white' }} />
+                          : null}
+                      </div>
+                      {!isLast && (
+                        <div style={{
+                          width: 2, minHeight: 20, flexGrow: 1,
+                          background: isDone ? '#1C3A2B' : '#E5E7EB',
+                          margin: '2px 0',
+                        }} />
+                      )}
+                    </div>
+                    <p
+                      className="font-body text-[12px] pt-1 pb-4"
+                      style={{
+                        fontWeight: (isDone || isCurrent) ? 700 : 400,
+                        color: (isDone || isCurrent) ? '#1A1A1A' : '#888780',
+                      }}
+                    >
+                      {step.label}
+                    </p>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Desktop: horizontal pipeline */}
+            <div className="hidden sm:flex items-start">
+              {STATUS_STEPS.map((step, i) => {
+                const isDone    = i < stepIndex
+                const isCurrent = i === stepIndex
+                const isLast    = i === STATUS_STEPS.length - 1
+                return (
+                  <div key={step.key} className="flex items-center flex-1">
+                    <div className="flex flex-col items-center gap-1.5">
+                      <div
+                        className="flex items-center justify-center rounded-full shrink-0"
+                        style={{
+                          width: 28, height: 28,
+                          background: isDone ? '#1C3A2B' : isCurrent ? '#C8922A' : 'white',
+                          border: (!isDone && !isCurrent) ? '2px solid #E5E7EB' : 'none',
+                          boxShadow: isCurrent ? '0 0 0 4px rgba(200,146,42,0.2)' : 'none',
+                        }}
+                      >
+                        {isDone
+                          ? <Check size={12} color="white" />
+                          : isCurrent
+                          ? <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'white' }} />
+                          : null}
+                      </div>
+                      <p
+                        className="font-body text-[11px] text-center"
+                        style={{
+                          fontWeight: (isDone || isCurrent) ? 700 : 400,
+                          color: (isDone || isCurrent) ? '#1A1A1A' : '#888780',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {step.label}
+                      </p>
+                    </div>
+                    {!isLast && (
+                      <div
+                        className="flex-1 mx-2"
+                        style={{
+                          height: 2,
+                          marginBottom: 22,
+                          background: isDone ? '#1C3A2B' : 'transparent',
+                          borderTop: isDone ? 'none' : '2px dashed #E5E7EB',
+                        }}
+                      />
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            <p className="font-body text-[14px] text-center mt-4" style={{ color: '#888780' }}>
+              {STATUS_DESCRIPTIONS[job.status] ?? ''}
+            </p>
+          </div>
+        )}
 
         {/* ─── SECTION 2 — YOUR TREE ─── */}
         {hasAI && aiResult && (
@@ -352,14 +504,111 @@ export default async function CustomerResultsPage({
           </div>
         </div>
 
-        {/* SECTION 6 — WHAT HAPPENS NEXT */}
-        {/* Added in Prompt C */}
+        {/* ─── SECTION 6 — WHAT HAPPENS NEXT ─── */}
+        {!isComplete && (
+          <div
+            className="bg-white rounded-2xl p-6"
+            style={{ border: '1px solid #E5E7EB', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
+          >
+            <p
+              className="font-body text-[11px] uppercase mb-4"
+              style={{ color: '#888780', letterSpacing: '0.08em' }}
+            >
+              What Happens Next
+            </p>
+            {([
+              {
+                n: 1,
+                title: 'We review your request',
+                desc: 'Our team looks over your submission and any photos you provided.',
+              },
+              {
+                n: 2,
+                title: 'We call you',
+                desc: `Expect a call ${getCallTimeframe(submission.urgency)} to discuss the job and answer any questions.`,
+              },
+              {
+                n: 3,
+                title: 'We come out and quote',
+                desc: 'We assess the job in person and give you a firm price before any work begins. No surprises.',
+              },
+            ] as { n: number; title: string; desc: string }[]).map(({ n, title, desc }, i, arr) => (
+              <div
+                key={n}
+                className="flex gap-4 items-start"
+                style={{
+                  paddingBottom: i < arr.length - 1 ? 16 : 0,
+                  borderBottom: i < arr.length - 1 ? '1px solid #F3F4F6' : 'none',
+                  marginBottom: i < arr.length - 1 ? 16 : 0,
+                }}
+              >
+                <div
+                  className="shrink-0 flex items-center justify-center rounded-full"
+                  style={{ width: 36, height: 36, background: '#1C3A2B' }}
+                >
+                  <span className="font-heading text-white font-bold text-[16px]">{n}</span>
+                </div>
+                <div>
+                  <p className="font-body font-bold text-[14px] text-[#1A1A1A]">{title}</p>
+                  <p className="font-body text-[13px] text-[#888780] mt-1" style={{ lineHeight: 1.5 }}>
+                    {desc}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
-        {/* SECTION 7 — AI UPSELL */}
-        {/* Added in Prompt C */}
+        {/* ─── SECTION 7 — AI UPSELL ─── */}
+        {!hasAI && !isComplete && (
+          <div
+            className="bg-white rounded-2xl p-6"
+            style={{
+              border: '1px solid #E5E7EB',
+              borderLeft: '4px solid #C8922A',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            }}
+          >
+            <div className="flex gap-3 items-start mb-3">
+              <Sparkles size={22} color="#C8922A" className="shrink-0 mt-0.5" />
+              <h3 className="font-heading text-[18px] text-[#1A1A1A] leading-tight">
+                Get a faster, more accurate quote
+              </h3>
+            </div>
+            <p className="font-body text-[14px] text-[#888780] mb-4" style={{ lineHeight: 1.6 }}>
+              Add a few photos of your tree and our AI will analyze it instantly — giving our team
+              everything they need to quote your job accurately before we even call.
+            </p>
+            <a
+              href="/submit"
+              className="w-full flex items-center justify-center gap-2 font-heading text-[15px] uppercase tracking-wide text-white rounded-xl py-3 hover:opacity-90 transition-opacity"
+              style={{ background: '#C8922A' }}
+            >
+              <Camera size={16} />
+              Add Photos Now
+            </a>
+          </div>
+        )}
 
-        {/* SECTION 8 — CONTACT CARD */}
-        {/* Added in Prompt C */}
+        {/* ─── SECTION 8 — CONTACT CARD ─── */}
+        <div className="bg-[#1C3A2B] rounded-2xl p-6 text-center">
+          <p
+            className="font-body text-[12px] uppercase mb-2"
+            style={{ color: '#9FE1CB', letterSpacing: '0.08em' }}
+          >
+            Questions? We&apos;re here.
+          </p>
+          <a
+            href="tel:7702716072"
+            className="block font-heading text-white py-2 w-full hover:opacity-85 transition-opacity"
+            style={{ fontSize: 28, fontWeight: 700 }}
+          >
+            (770) 271-6072
+          </a>
+          <p className="font-body text-[13px] mt-2" style={{ color: 'rgba(255,255,255,0.5)', lineHeight: 1.6 }}>
+            Mon–Fri 8am–6pm<br />Emergency line: 24/7
+          </p>
+        </div>
 
       </div>
     </div>
