@@ -28,6 +28,7 @@ export async function PATCH(
   const allowed = [
     'customer_name', 'customer_phone', 'customer_email',
     'property_address', 'tree_location', 'additional_notes', 'status', 'internal_notes',
+    'photo_urls',
   ]
   const patch: Record<string, unknown> = {}
   for (const key of allowed) {

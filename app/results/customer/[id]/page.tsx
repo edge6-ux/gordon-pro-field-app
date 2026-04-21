@@ -580,7 +580,7 @@ export default async function CustomerResultsPage({
               everything they need to quote your job accurately before we even call.
             </p>
             <a
-              href="/submit"
+              href={`/results/customer/${submission.id}/add-photos`}
               className="w-full flex items-center justify-center gap-2 font-heading text-[15px] uppercase tracking-wide text-white rounded-xl py-3 hover:opacity-90 transition-opacity"
               style={{ background: '#C8922A' }}
             >
