@@ -69,61 +69,87 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = await request.json() as SubmitBody
+    const {
+      customerName,
+      customerPhone,
+      customerEmail,
+      propertyAddress,
+      serviceType,
+      treeCount,
+      urgency,
+      bestTimeToCall,
+      additionalNotes,
+      photoUrls,
+      source,
+    } = await request.json() as SubmitBody
 
-    const id = uuidv4()
-    const submission: Omit<TreeSubmission, 'ai_result'> = {
-      id,
-      created_at: new Date().toISOString(),
-      customer_name: body.customerName ?? `${body.firstName ?? ''} ${body.lastName ?? ''}`.trim(),
-      customer_phone: body.customerPhone ?? body.phone ?? '',
-      customer_email: body.customerEmail ?? body.email ?? '',
-      property_address: body.propertyAddress ?? body.address ?? '',
-      tree_height: body.treeHeight ?? 'under_20ft',
-      tree_location: body.treeLocation ?? '',
-      lean_direction: body.leanDirection ?? 'none',
-      proximity_to_structures: body.proximity ?? 'none',
-      additional_notes: body.additionalNotes ?? body.notes ?? '',
-      photo_urls: body.photoUrls,
-      status: 'pending',
-      source: body.source === 'operator' ? 'operator' : 'customer',
-      service_type: body.serviceType ?? '',
-      tree_count: body.treeCount ?? '',
-      urgency: body.urgency ?? '',
-      best_time_to_call: body.bestTimeToCall ?? '',
-    }
+    const submissionId = uuidv4()
 
     const supabase = getServiceClient()
-    const { error } = await supabase.from('submissions').insert(submission)
+    const { error } = await supabase.from('submissions').insert({
+      id:                submissionId,
+      created_at:        new Date().toISOString(),
+      customer_name:     customerName,
+      customer_phone:    customerPhone,
+      customer_email:    customerEmail,
+      property_address:  propertyAddress,
+      service_type:      serviceType || '',
+      tree_count:        treeCount || '',
+      urgency:           urgency || '',
+      best_time_to_call: bestTimeToCall || '',
+      additional_notes:  additionalNotes || '',
+      photo_urls:        photoUrls || [],
+      source:            source || 'customer',
+      status:            'pending',
+    })
     if (error) {
       console.error('Supabase insert error:', error)
       return NextResponse.json({ error: 'Failed to save submission' }, { status: 500 })
     }
 
     // Fire-and-forget: internal operator notification
-    sendEmailNotification(submission).catch(console.error)
+    sendEmailNotification({
+      id:                      submissionId,
+      created_at:              new Date().toISOString(),
+      customer_name:           customerName ?? '',
+      customer_phone:          customerPhone ?? '',
+      customer_email:          customerEmail ?? '',
+      property_address:        propertyAddress ?? '',
+      tree_height:             'under_20ft',
+      tree_location:           '',
+      lean_direction:          'none',
+      proximity_to_structures: 'none',
+      additional_notes:        additionalNotes || '',
+      photo_urls:              photoUrls || [],
+      status:                  'pending',
+      source:                  source || 'customer',
+      service_type:            serviceType || '',
+      tree_count:              treeCount || '',
+      urgency:                 urgency || '',
+      best_time_to_call:       bestTimeToCall || '',
+    }).catch(console.error)
 
     // Email 1 — submission confirmed
     // Only for customer submissions with an email address
     if (
-      body.customerEmail &&
-      body.customerEmail.trim() !== '' &&
-      body.source !== 'operator'
+      customerEmail &&
+      customerEmail.trim() !== '' &&
+      source !== 'operator'
     ) {
       try {
         // Try to get the DB-generated reference code; fall back to ID slice
         const { data: row } = await supabase
           .from('submissions')
           .select('reference_code')
-          .eq('id', id)
+          .eq('id', submissionId)
           .single()
 
-        const referenceCode = row?.reference_code ?? id.slice(0, 8).toUpperCase()
+        const referenceCode = row?.reference_code ?? submissionId.slice(0, 8).toUpperCase()
         const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/+$/, '')
 
         await sendSubmissionConfirmed({
-          customerName: body.customerName || 'there',
-          customerEmail: body.customerEmail,
+          customerName: customerName || 'there',
+          customerEmail: customerEmail,
           referenceCode,
           trackingUrl: `${appUrl}/track/${referenceCode}`,
         })
@@ -133,7 +159,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ id })
+    return NextResponse.json({ id: submissionId })
   } catch (err) {
     console.error('Submit error:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
