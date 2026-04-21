@@ -18,6 +18,11 @@ export async function POST(request: NextRequest) {
   try {
     const job = await getJobByReference(body.referenceCode)
 
+    console.log('Job found:', job ? 'yes' : 'no')
+    console.log('Job phone:', job?.customer_phone)
+    console.log('Input last4:', last4Digits(body.phone))
+    console.log('Job last4:', job?.customer_phone ? last4Digits(job.customer_phone) : 'null')
+
     if (!job || last4Digits(job.customer_phone) !== last4Digits(body.phone)) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 })
     }
