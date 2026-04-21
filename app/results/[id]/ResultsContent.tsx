@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
-import type { TreeSubmission, AIResult, Flag } from '@/lib/types'
+import type { TreeSubmission, AIResult, Flag, Job } from '@/lib/types'
+import OperatorTools from '@/components/results/OperatorTools'
 import {
   AlertTriangle, CheckCircle, Info, X, ChevronLeft, ChevronRight,
   Share2, Printer, Phone, Loader2, Trees, MapPin, Ruler, ArrowRight,
-  Camera, TreePine,
+  Camera, TreePine, Copy, Check, ExternalLink, Sparkles,
 } from 'lucide-react'
 
 // ─── Scroll Reveal ────────────────────────────────────────────────────────────
@@ -402,7 +403,7 @@ function CustomerCTA() {
         <p className="text-white/70 text-sm mb-5">We&apos;re here to help. Call us anytime.</p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <a
-            href="tel:+1-555-000-0000"
+            href="tel:+17702716072"
             className="inline-flex items-center justify-center gap-2 bg-gold text-white px-6 py-3 rounded-lg font-semibold text-sm hover:bg-gold/90 transition-colors"
           >
             <Phone className="w-4 h-4" />
@@ -510,10 +511,91 @@ function OperatorSaveJob({ submission }: { submission: TreeSubmission }) {
   )
 }
 
+// ─── Reference Card ───────────────────────────────────────────────────────────
+
+function CopyReferenceButton({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(code)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-[13px] font-body transition-colors"
+      style={{ background: '#1C3A2B' }}
+    >
+      {copied ? <Check size={14} /> : <Copy size={14} />}
+      {copied ? 'Copied!' : 'Copy'}
+    </button>
+  )
+}
+
+function ReferenceCard({ code }: { code: string }) {
+  return (
+    <div
+      style={{
+        background: '#EAF3DE',
+        border: '1px solid #C0DD97',
+        borderRadius: 16,
+        padding: 20,
+        marginBottom: 4,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 16,
+      }}
+    >
+      <div>
+        <p
+          className="font-body"
+          style={{ color: '#3B6D11', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}
+        >
+          Your Reference Number
+        </p>
+        <p
+          className="font-heading font-mono"
+          style={{ color: '#1C3A2B', fontSize: 32, letterSpacing: '0.05em', marginTop: 4, lineHeight: 1 }}
+        >
+          {code}
+        </p>
+        <p className="font-body" style={{ color: '#3B6D11', fontSize: 12, marginTop: 4 }}>
+          Save this to track your job status
+        </p>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flexShrink: 0 }}>
+        <CopyReferenceButton code={code} />
+        <a
+          href={`/track/${code}`}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[13px] font-body transition-colors"
+          style={{ background: 'white', border: '1px solid #1C3A2B', color: '#1C3A2B' }}
+        >
+          <ExternalLink size={14} />
+          Track Job
+        </a>
+      </div>
+    </div>
+  )
+}
+
 // ─── Assessment Header ────────────────────────────────────────────────────────
 
-function AssessmentHeader({ submission }: { submission: TreeSubmission }) {
+function AssessmentHeader({
+  submission,
+  title,
+  subtitle,
+}: {
+  submission: TreeSubmission
+  title?: string
+  subtitle?: string
+}) {
   const isCustomer = submission.source === 'customer'
+  const defaultTitle    = isCustomer ? 'Assessment Complete' : 'Field Analysis Complete'
+  const defaultSubtitle = isCustomer ? "We'll be in touch shortly" : ''
+
   return (
     <div
       className="rounded-2xl p-5 mb-1 flex items-center justify-between print:hidden"
@@ -521,16 +603,146 @@ function AssessmentHeader({ submission }: { submission: TreeSubmission }) {
     >
       <div>
         <p className="font-body text-[11px] uppercase tracking-widest mb-1" style={{ color: '#9FE1CB' }}>
-          Tree Assessment
+          {isCustomer ? 'Tree Service Request' : 'Tree Assessment'}
         </p>
         <h1 className="font-heading text-[22px] text-white leading-tight">
-          {isCustomer ? 'Assessment Complete' : 'Field Analysis Complete'}
+          {title ?? defaultTitle}
         </h1>
-        <p className="font-body text-[12px] mt-1" style={{ color: 'rgba(255,255,255,0.5)' }}>
+        {(subtitle ?? defaultSubtitle) && (
+          <p className="font-body text-[13px] mt-0.5" style={{ color: 'rgba(255,255,255,0.6)' }}>
+            {subtitle ?? defaultSubtitle}
+          </p>
+        )}
+        <p className="font-body text-[12px] mt-1" style={{ color: 'rgba(255,255,255,0.4)' }}>
           Ref #{submission.id.slice(0, 8).toUpperCase()}
         </p>
       </div>
       <CheckCircle size={28} style={{ color: '#C8922A', flexShrink: 0 }} />
+    </div>
+  )
+}
+
+// ─── No Photos — Confirmation Page ───────────────────────────────────────────
+
+const URGENCY_LABELS: Record<string, string> = {
+  Routine:   'Routine',
+  Soon:      'Within a few weeks',
+  Emergency: 'Emergency — urgent',
+}
+
+function NoPhotosConfirmation({
+  submission,
+  referenceCode,
+}: {
+  submission: TreeSubmission
+  referenceCode?: string | null
+}) {
+  const firstName = submission.customer_name.split(' ')[0] || submission.customer_name
+
+  return (
+    <div className="space-y-4">
+      <AssessmentHeader
+        submission={submission}
+        title="Request Received"
+        subtitle="We'll be in touch shortly"
+      />
+
+      {referenceCode && <ReferenceCard code={referenceCode} />}
+
+      {/* Main confirmation card */}
+      <ScrollReveal>
+        <div className="bg-white rounded-2xl border border-gray-200 px-6 py-8 text-center">
+          <CheckCircle size={48} className="mx-auto mb-4 text-[#C8922A]" />
+          <h2 className="font-heading text-[22px] text-[#1C3A2B] mb-3">
+            You&apos;re all set, {firstName}.
+          </h2>
+          <p className="font-body text-[15px] text-gray-500 leading-relaxed mb-6 max-w-sm mx-auto">
+            We&apos;ve received your{' '}
+            <span className="font-medium text-[#4A4A4A]">{submission.service_type || 'service'}</span>{' '}
+            request and our team will be in touch soon — usually within a few hours during business hours.
+          </p>
+
+          {/* Job summary */}
+          <div
+            className="rounded-xl p-4 text-left space-y-2.5"
+            style={{ background: '#F5F2ED' }}
+          >
+            {submission.service_type && (
+              <div className="flex justify-between gap-3">
+                <span className="font-body text-[13px] text-gray-400">Service</span>
+                <span className="font-body text-[13px] text-[#4A4A4A] font-medium text-right">
+                  {submission.service_type}
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between gap-3">
+              <span className="font-body text-[13px] text-gray-400">Trees</span>
+              <span className="font-body text-[13px] text-[#4A4A4A] font-medium">
+                {submission.tree_count || 'Not specified'}
+              </span>
+            </div>
+            {submission.urgency && (
+              <div className="flex justify-between gap-3">
+                <span className="font-body text-[13px] text-gray-400">Urgency</span>
+                <span className="font-body text-[13px] text-[#4A4A4A] font-medium">
+                  {URGENCY_LABELS[submission.urgency] ?? submission.urgency}
+                </span>
+              </div>
+            )}
+            {submission.property_address && (
+              <div className="flex justify-between gap-3">
+                <span className="font-body text-[13px] text-gray-400 shrink-0">Property</span>
+                <span className="font-body text-[13px] text-[#4A4A4A] font-medium text-right">
+                  {submission.property_address}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </ScrollReveal>
+
+      {/* AI upsell card */}
+      <ScrollReveal>
+        <div
+          className="bg-white rounded-2xl p-6"
+          style={{ border: '1px solid #E5E7EB', borderLeft: '4px solid #C8922A' }}
+        >
+          <div className="flex items-start gap-3 mb-3">
+            <Sparkles size={24} className="text-[#C8922A] shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-heading text-[18px] text-[#1C3A2B] leading-tight">
+                Want a faster, more accurate quote?
+              </h3>
+            </div>
+          </div>
+          <p className="font-body text-[14px] text-gray-500 leading-relaxed mb-4">
+            Upload a few photos of your tree and our AI will analyze it instantly — giving us
+            everything we need to quote your job accurately before we even call.
+          </p>
+          <a
+            href="/submit"
+            className="w-full flex items-center justify-center gap-2 bg-[#C8922A] text-white
+                       font-heading text-[15px] uppercase tracking-wide py-3.5 rounded-xl
+                       hover:bg-amber-600 active:bg-amber-700 transition-colors duration-150"
+          >
+            <Camera size={16} />
+            Add Photos for AI Assessment
+          </a>
+        </div>
+      </ScrollReveal>
+
+      {/* Contact card */}
+      <ScrollReveal>
+        <div className="bg-white rounded-2xl border border-gray-200 px-6 py-6 text-center">
+          <p className="font-body text-[13px] text-gray-400 mb-2">Questions? Call us:</p>
+          <a
+            href="tel:+17702716072"
+            className="font-heading text-[28px] text-[#1C3A2B] hover:text-[#2D5A40] transition-colors"
+          >
+            (770) 271-6072
+          </a>
+        </div>
+      </ScrollReveal>
     </div>
   )
 }
@@ -632,7 +844,15 @@ function NoTreeDetected({ submission }: { submission: TreeSubmission }) {
 
 // ─── Root Component ───────────────────────────────────────────────────────────
 
-export default function ResultsContent({ submission: initial }: { submission: TreeSubmission }) {
+export default function ResultsContent({
+  submission: initial,
+  referenceCode,
+  job,
+}: {
+  submission: TreeSubmission
+  referenceCode?: string | null
+  job?: Job | null
+}) {
   const [submission, setSubmission] = useState(initial)
   const hasResult = !!submission.ai_result
 
@@ -643,25 +863,50 @@ export default function ResultsContent({ submission: initial }: { submission: Tr
   const result = submission.ai_result
   const isQualityIssue = result?.species_description?.toLowerCase().startsWith('[quality_issue]:') ?? false
 
+  // No photos submitted — show confirmation page instead of AI results
+  const noPhotos =
+    submission.photo_urls.length === 0 &&
+    !submission.ai_result &&
+    submission.source === 'customer'
+
   return (
     <main className="max-w-2xl mx-auto px-4 py-10 space-y-4">
-      <AssessmentHeader submission={submission} />
-
-      {!hasResult ? (
-        <LoadingPoller id={submission.id} onResult={handleResult} />
+      {noPhotos ? (
+        <NoPhotosConfirmation submission={submission} referenceCode={referenceCode} />
+      ) : !hasResult ? (
+        <>
+          <AssessmentHeader submission={submission} />
+          <LoadingPoller id={submission.id} onResult={handleResult} />
+        </>
       ) : submission.ai_result?.no_tree_detected ? (
         <>
+          <AssessmentHeader submission={submission} />
+          {referenceCode && submission.source === 'customer' && (
+            <ReferenceCard code={referenceCode} />
+          )}
           <NoTreeDetected submission={submission} />
           <PhotosSection urls={submission.photo_urls} />
         </>
       ) : isQualityIssue ? (
         <>
+          <AssessmentHeader submission={submission} />
+          {referenceCode && submission.source === 'customer' && (
+            <ReferenceCard code={referenceCode} />
+          )}
           <QualityIssueBanner description={result!.species_description} source={submission.source} />
           <PhotosSection urls={submission.photo_urls} />
-          {submission.source === 'operator' && <OperatorSaveJob submission={submission} />}
+          {submission.source === 'operator' && (
+            job
+              ? <OperatorTools job={job} submissionId={submission.id} />
+              : <p className="text-center font-body text-[13px] text-gray-400 py-2">Job record not found. Contact the office.</p>
+          )}
         </>
       ) : (
         <>
+          <AssessmentHeader submission={submission} />
+          {referenceCode && submission.source === 'customer' && (
+            <ReferenceCard code={referenceCode} />
+          )}
           {result && <FlagAlerts flags={result.flags} />}
           {result && <SpeciesCard result={result} />}
           {result && <CharacteristicsCard items={result.key_characteristics} />}
@@ -669,7 +914,11 @@ export default function ResultsContent({ submission: initial }: { submission: Tr
           {result && <CrewTipsCard tips={result.crew_tips} />}
           <PhotosSection urls={submission.photo_urls} />
           {submission.source === 'customer' && <WhatHappensNext />}
-          {submission.source === 'operator' && <OperatorSaveJob submission={submission} />}
+          {submission.source === 'operator' && (
+            job
+              ? <OperatorTools job={job} submissionId={submission.id} />
+              : <p className="text-center font-body text-[13px] text-gray-400 py-2">Job record not found. Contact the office.</p>
+          )}
           {submission.source === 'customer' && <CustomerCTA />}
           {result && (
             <p className="text-center text-xs text-gray-300 print:text-gray-400">

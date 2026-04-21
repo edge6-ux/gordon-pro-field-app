@@ -11,7 +11,7 @@ export default function AppHeader() {
 
   return (
     <header className="sticky top-0 z-50 bg-white shadow-sm border-b border-gray-100">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+      <div className="px-4 sm:px-6 h-14 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2 shrink-0 cursor-pointer">
           <div className="relative w-8 h-8">
             <Image

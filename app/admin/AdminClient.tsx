@@ -1,11 +1,23 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
+import { Briefcase, MapPin, TreePine } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import type { TreeSubmission, Flag } from '@/lib/types'
+import type { TreeSubmission, Flag, Job, JobStatus } from '@/lib/types'
+import { JOB_STATUS_CONFIG } from '@/lib/types'
+import { getPipelineSteps, getStatusConfig } from '@/lib/jobs'
+
+// ── Constants ─────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 20
 const AUTH_EXP_KEY = 'gp_admin_exp'
+
+type AdminView = 'submissions' | 'pipeline'
+
+type SubmissionWithJob = TreeSubmission & {
+  job: { id: string; status: JobStatus; reference_code: string } | null
+}
 
 const FILTERS = [
   { label: 'All', value: 'all' },
@@ -41,6 +53,8 @@ const LEAN_LABELS: Record<string, string> = {
 const PROX_LABELS: Record<string, string> = {
   none: 'None', close: 'Close', very_close: 'Very Close', contact: 'Contact',
 }
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function topSeverity(flags: Flag[] = []): 'stop' | 'caution' | 'info' | null {
   if (flags.some(f => f.severity === 'stop')) return 'stop'
@@ -80,6 +94,17 @@ function fmtDate(iso: string) {
   })
 }
 
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  return `${Math.floor(hrs / 24)}d ago`
+}
+
+// ── Small components ──────────────────────────────────────────────────────────
+
 function Spinner({ size = 'md' }: { size?: 'sm' | 'md' }) {
   const cls = size === 'sm' ? 'w-4 h-4 border-2' : 'w-8 h-8 border-4'
   return <div className={`${cls} border-green-700 border-t-transparent rounded-full animate-spin`} />
@@ -104,10 +129,156 @@ function SkeletonCard() {
   )
 }
 
-// ── Sub-component ────────────────────────────────────────────────────────────
+// ── Job Pipeline ──────────────────────────────────────────────────────────────
+
+function JobCard({ job, onClick }: { job: Job; onClick: () => void }) {
+  const flags = job.submission?.ai_result?.flags ?? []
+  const hasStopFlag = flags.some(f => f.severity === 'stop')
+  const species = job.submission?.ai_result?.species_name
+
+  return (
+    <div
+      onClick={onClick}
+      className="bg-white border border-gray-200 rounded-xl p-3 mb-2 cursor-pointer transition-shadow hover:shadow-md hover:border-gray-300"
+    >
+      <div className="flex items-center gap-1">
+        <span className="font-semibold text-[13px] text-gray-900 truncate flex-1">{job.customer_name}</span>
+        {hasStopFlag && (
+          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: '#E24B4A' }} />
+        )}
+      </div>
+      <div className="flex items-center gap-1 mt-1">
+        <MapPin size={11} className="text-gray-400 flex-shrink-0" />
+        <span className="text-[11px] text-gray-400 truncate">{job.property_address}</span>
+      </div>
+      <div className="flex items-center justify-between mt-2">
+        <span className="font-mono text-[10px] text-gray-400">{job.reference_code}</span>
+        <span className="text-[10px] text-gray-400">{timeAgo(job.created_at)}</span>
+      </div>
+      {species && (
+        <div className="flex items-center gap-1 mt-2 pt-2" style={{ borderTop: '1px solid #F3F4F6' }}>
+          <TreePine size={11} color="#C8922A" className="flex-shrink-0" />
+          <span className="text-[11px] truncate" style={{ color: '#C8922A' }}>{species}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PipelineSkeleton() {
+  const columns = getPipelineSteps()
+  return (
+    <div className="overflow-x-auto pb-4">
+      <div style={{ display: 'flex', gap: 16, minWidth: 1180 }}>
+        {columns.map(col => (
+          <div key={col} style={{ minWidth: 220, flex: '0 0 220px' }}>
+            <div className="h-8 bg-gray-100 rounded-lg animate-pulse mb-3" />
+            {[1, 2, 3].map(j => (
+              <div key={j} className="bg-white border border-gray-200 rounded-xl p-3 mb-2 animate-pulse">
+                <div className="h-3 bg-gray-200 rounded w-3/4 mb-2" />
+                <div className="h-2 bg-gray-100 rounded w-full mb-2" />
+                <div className="h-2 bg-gray-100 rounded w-1/2" />
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function JobPipeline({
+  jobs,
+  loading,
+  error,
+  onRetry,
+}: {
+  jobs: Job[]
+  loading: boolean
+  error: boolean
+  onRetry: () => void
+}) {
+  const router = useRouter()
+  const columns = getPipelineSteps()
+
+  const grouped = useMemo(() =>
+    jobs.reduce((acc, job) => {
+      const key = job.status
+      acc[key] = [...(acc[key] ?? []), job]
+      return acc
+    }, {} as Partial<Record<JobStatus, Job[]>>)
+  , [jobs])
+
+  if (loading) return <PipelineSkeleton />
+
+  if (error) {
+    return (
+      <div className="bg-white rounded-xl border border-gray-200 p-10 text-center">
+        <p className="text-sm text-gray-500 mb-3">Failed to load jobs</p>
+        <button
+          onClick={onRetry}
+          className="px-4 py-2 bg-green-800 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+        >
+          Retry
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="overflow-x-auto pb-4">
+      <div style={{ display: 'flex', gap: 16, minWidth: 1180 }}>
+        {columns.map(status => {
+          const config = getStatusConfig(status)
+          const columnJobs = grouped[status] ?? []
+
+          return (
+            <div key={status} style={{ minWidth: 220, flex: '0 0 220px', display: 'flex', flexDirection: 'column', minHeight: 400 }}>
+              {/* Column header */}
+              <div
+                className="flex items-center justify-between mb-3 pb-3"
+                style={{ borderBottom: '1px solid #E5E7EB' }}
+              >
+                <span className="font-semibold text-[13px]" style={{ color: config.color === '#FFFFFF' ? '#1C3A2B' : config.color }}>
+                  {config.label}
+                </span>
+                <span
+                  className="font-bold text-[12px] px-2.5 py-0.5 rounded-full"
+                  style={{ background: config.bg, color: config.color === '#FFFFFF' ? '#1C3A2B' : config.color }}
+                >
+                  {columnJobs.length}
+                </span>
+              </div>
+
+              {/* Job cards */}
+              {columnJobs.length === 0 ? (
+                <div className="flex-1 flex items-start justify-center pt-8">
+                  <p className="text-[13px] text-gray-400">
+                    No {config.label.toLowerCase()} jobs
+                  </p>
+                </div>
+              ) : (
+                columnJobs.map(job => (
+                  <JobCard
+                    key={job.id}
+                    job={job}
+                    onClick={() => router.push(`/admin/jobs/${job.id}`)}
+                  />
+                ))
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Submission Card ───────────────────────────────────────────────────────────
 
 interface CardProps {
   sub: TreeSubmission
+  job: SubmissionWithJob['job']
   expanded: boolean
   flashing: boolean
   statusSaving: boolean
@@ -122,12 +293,13 @@ interface CardProps {
 }
 
 function SubmissionCard({
-  sub, expanded, flashing, statusSaving, statusSaved, notesStatus,
+  sub, job, expanded, flashing, statusSaving, statusSaved, notesStatus,
   notesDraft, onToggle, onStatusChange, onNotesDraftChange, onNotesSave, onPhotoClick,
 }: CardProps) {
   const flags = sub.ai_result?.flags ?? []
   const severity = topSeverity(flags)
   const borderClass = cardBorderClass(flags)
+  const jobConfig = job ? JOB_STATUS_CONFIG[job.status] : null
 
   return (
     <div
@@ -154,6 +326,15 @@ function SubmissionCard({
             {severity === 'caution' && !flags.some(f => f.severity === 'stop') && (
               <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-yellow-100 text-yellow-700">
                 ⚠ Caution
+              </span>
+            )}
+            {/* Job status pill */}
+            {jobConfig && (
+              <span
+                className="text-xs px-2 py-0.5 rounded-full font-bold"
+                style={{ background: jobConfig.bg, color: jobConfig.color === '#FFFFFF' ? '#1C3A2B' : jobConfig.color }}
+              >
+                {jobConfig.label}
               </span>
             )}
           </div>
@@ -334,7 +515,7 @@ function SubmissionCard({
           </div>
 
           {/* Actions */}
-          <div className="flex gap-2 pt-1">
+          <div className="flex gap-2 pt-1 flex-wrap">
             <a
               href={`tel:${sub.customer_phone}`}
               className="flex-1 text-center px-3 py-2 bg-green-800 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
@@ -357,6 +538,15 @@ function SubmissionCard({
             >
               Full Report
             </a>
+            {job && (
+              <a
+                href={`/admin/jobs/${job.id}`}
+                className="flex-1 text-center px-3 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:border-green-700 hover:text-green-800 transition-colors inline-flex items-center justify-center gap-1.5"
+              >
+                <Briefcase size={14} />
+                Manage Job
+              </a>
+            )}
           </div>
         </div>
       )}
@@ -364,7 +554,7 @@ function SubmissionCard({
   )
 }
 
-// ── Main component ───────────────────────────────────────────────────────────
+// ── Main Component ────────────────────────────────────────────────────────────
 
 export default function AdminClient() {
   const [checkingAuth, setCheckingAuth] = useState(true)
@@ -373,11 +563,17 @@ export default function AdminClient() {
   const [loginError, setLoginError] = useState<string | null>(null)
   const [loginLoading, setLoginLoading] = useState(false)
 
+  const [view, setView] = useState<AdminView>('submissions')
+
   const [submissions, setSubmissions] = useState<TreeSubmission[]>([])
   const [offset, setOffset] = useState(0)
   const [hasMore, setHasMore] = useState(false)
   const [initialLoading, setInitialLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
+
+  const [jobs, setJobs] = useState<Job[]>([])
+  const [jobsLoading, setJobsLoading] = useState(false)
+  const [jobsError, setJobsError] = useState(false)
 
   const [activeFilter, setActiveFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -413,9 +609,26 @@ export default function AdminClient() {
     }
   }, [])
 
+  const loadJobs = useCallback(async () => {
+    setJobsLoading(true)
+    setJobsError(false)
+    try {
+      const res = await fetch('/api/jobs')
+      const data = await res.json() as Job[]
+      setJobs(Array.isArray(data) ? data : [])
+    } catch {
+      setJobsError(true)
+    } finally {
+      setJobsLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
-    if (authed) loadSubmissions(0, false)
-  }, [authed, loadSubmissions])
+    if (authed) {
+      loadSubmissions(0, false)
+      void loadJobs()
+    }
+  }, [authed, loadSubmissions, loadJobs])
 
   useEffect(() => {
     if (!authed) return
@@ -474,6 +687,20 @@ export default function AdminClient() {
     operator: submissions.filter(s => s.source === 'operator').length,
   }), [submissions])
 
+  const activeJobsCount = useMemo(() =>
+    jobs.filter(j => j.status === 'assigned' || j.status === 'in_progress').length
+  , [jobs])
+
+  const submissionsWithJobs: SubmissionWithJob[] = useMemo(() =>
+    filtered.map(sub => {
+      const match = jobs.find(j => j.submission_id === sub.id)
+      return {
+        ...sub,
+        job: match ? { id: match.id, status: match.status, reference_code: match.reference_code } : null,
+      }
+    })
+  , [filtered, jobs])
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setLoginLoading(true)
@@ -508,7 +735,6 @@ export default function AdminClient() {
         setStatusSaved(prev => ({ ...prev, [id]: true }))
         setTimeout(() => setStatusSaved(prev => ({ ...prev, [id]: false })), 1500)
       } else {
-        // surface error via flash
         setStatusSaved(prev => ({ ...prev, [id]: false }))
       }
     } finally {
@@ -542,6 +768,7 @@ export default function AdminClient() {
     localStorage.removeItem(AUTH_EXP_KEY)
     setAuthed(false)
     setSubmissions([])
+    setJobs([])
     setOffset(0)
     setPassword('')
   }
@@ -603,7 +830,7 @@ export default function AdminClient() {
 
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-5">
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[
             { label: 'Total', value: stats.total, color: 'text-green-900' },
             { label: 'Pending', value: stats.pending, color: 'text-gray-700' },
@@ -615,74 +842,126 @@ export default function AdminClient() {
               <p className="text-xs text-gray-400 mt-0.5">{label}</p>
             </div>
           ))}
+
+          {/* Active Jobs stat */}
+          <div className="bg-white rounded-xl border border-gray-200 px-4 py-3">
+            <div className="flex items-center gap-1.5">
+              <Briefcase size={20} color="#C8922A" />
+              {jobsLoading ? (
+                <div className="h-7 w-8 bg-gray-100 rounded animate-pulse" />
+              ) : (
+                <p className={`text-2xl font-bold ${activeJobsCount > 0 ? 'text-[#C8922A]' : 'text-gray-700'}`}>
+                  {activeJobsCount}
+                </p>
+              )}
+            </div>
+            <p className="text-xs text-gray-400 mt-0.5">Active jobs</p>
+          </div>
         </div>
 
-        {/* Search + filters */}
-        <div className="space-y-3">
-          <input
-            type="search"
-            placeholder="Search by name, phone, or address…"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-700"
-          />
-          <div className="flex gap-2 flex-wrap">
-            {FILTERS.map(f => (
+        {/* View toggle — desktop only */}
+        <div className="hidden md:flex w-fit">
+          <div className="flex p-1 rounded-xl" style={{ background: '#F1EFE8' }}>
+            {(['submissions', 'pipeline'] as const).map(option => (
               <button
-                key={f.value}
-                onClick={() => setActiveFilter(f.value)}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                  activeFilter === f.value
-                    ? 'bg-green-800 text-white'
-                    : 'bg-white border border-gray-200 text-gray-600 hover:border-green-700 hover:text-green-800'
+                key={option}
+                onClick={() => setView(option)}
+                className={`px-5 py-2 rounded-lg text-[14px] transition-all duration-150 ${
+                  view === option
+                    ? 'bg-white text-[#1A1A1A] font-medium shadow-sm'
+                    : 'bg-transparent text-[#888780]'
                 }`}
               >
-                {f.label}
+                {option === 'submissions' ? 'Submissions' : 'Job Pipeline'}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Submission list */}
-        {initialLoading ? (
-          <div className="space-y-3">
-            <SkeletonCard />
-            <SkeletonCard />
-            <SkeletonCard />
+        {/* Pipeline view — desktop only */}
+        {view === 'pipeline' && (
+          <div className="hidden md:block">
+            <JobPipeline
+              jobs={jobs}
+              loading={jobsLoading}
+              error={jobsError}
+              onRetry={loadJobs}
+            />
           </div>
-        ) : filtered.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-400 text-sm">
-            No submissions match your filters.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {filtered.map(sub => (
-              <SubmissionCard
-                key={sub.id}
-                sub={sub}
-                expanded={expandedId === sub.id}
-                flashing={flashIds.has(sub.id)}
-                statusSaving={!!statusSaving[sub.id]}
-                statusSaved={!!statusSaved[sub.id]}
-                notesStatus={notesStatus[sub.id] ?? null}
-                notesDraft={notesDraft[sub.id] ?? sub.internal_notes ?? ''}
-                onToggle={() => setExpandedId(prev => prev === sub.id ? null : sub.id)}
-                onStatusChange={status => handleStatusChange(sub.id, status)}
-                onNotesDraftChange={val => setNotesDraft(prev => ({ ...prev, [sub.id]: val }))}
-                onNotesSave={() => handleNotesSave(sub.id)}
-                onPhotoClick={url => setLightboxUrl(url)}
-              />
-            ))}
+        )}
 
-            {hasMore && (
-              <div className="flex justify-center pt-2">
-                <button
-                  onClick={() => loadSubmissions(offset, true)}
-                  disabled={loadingMore}
-                  className="px-6 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:border-green-700 hover:text-green-800 disabled:opacity-60 transition-colors"
-                >
-                  {loadingMore ? 'Loading…' : 'Load More'}
-                </button>
+        {/* Submissions view */}
+        {(view === 'submissions' || true) && (
+          <div className={view === 'pipeline' ? 'md:hidden' : ''}>
+            {/* Search + filters */}
+            <div className="space-y-3 mb-5">
+              <input
+                type="search"
+                placeholder="Search by name, phone, or address…"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-700"
+              />
+              <div className="flex gap-2 flex-wrap">
+                {FILTERS.map(f => (
+                  <button
+                    key={f.value}
+                    onClick={() => setActiveFilter(f.value)}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                      activeFilter === f.value
+                        ? 'bg-green-800 text-white'
+                        : 'bg-white border border-gray-200 text-gray-600 hover:border-green-700 hover:text-green-800'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Submission list */}
+            {initialLoading ? (
+              <div className="space-y-3">
+                <SkeletonCard />
+                <SkeletonCard />
+                <SkeletonCard />
+              </div>
+            ) : submissionsWithJobs.length === 0 ? (
+              <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-400 text-sm">
+                No submissions match your filters.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {submissionsWithJobs.map(sub => (
+                  <SubmissionCard
+                    key={sub.id}
+                    sub={sub}
+                    job={sub.job}
+                    expanded={expandedId === sub.id}
+                    flashing={flashIds.has(sub.id)}
+                    statusSaving={!!statusSaving[sub.id]}
+                    statusSaved={!!statusSaved[sub.id]}
+                    notesStatus={notesStatus[sub.id] ?? null}
+                    notesDraft={notesDraft[sub.id] ?? sub.internal_notes ?? ''}
+                    onToggle={() => setExpandedId(prev => prev === sub.id ? null : sub.id)}
+                    onStatusChange={status => handleStatusChange(sub.id, status)}
+                    onNotesDraftChange={val => setNotesDraft(prev => ({ ...prev, [sub.id]: val }))}
+                    onNotesSave={() => handleNotesSave(sub.id)}
+                    onPhotoClick={url => setLightboxUrl(url)}
+                  />
+                ))}
+
+                {hasMore && (
+                  <div className="flex justify-center pt-2">
+                    <button
+                      onClick={() => loadSubmissions(offset, true)}
+                      disabled={loadingMore}
+                      className="px-6 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:border-green-700 hover:text-green-800 disabled:opacity-60 transition-colors"
+                    >
+                      {loadingMore ? 'Loading…' : 'Load More'}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

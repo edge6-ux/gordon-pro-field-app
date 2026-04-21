@@ -15,7 +15,8 @@
       "Bash(xargs sed *)",
       "Bash(xargs grep *)",
       "Bash(npx next *)",
-      "Bash(npm --version)"
+      "Bash(npm --version)",
+      "Bash(npx tsc *)"
     ]
   }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import { getServiceClient } from '@/lib/supabase'
+import { sendSubmissionConfirmed } from '@/lib/email'
 import type { TreeSubmission } from '@/lib/types'
 
 // ─── Rate limiting ────────────────────────────────────────────────────────────
@@ -29,17 +30,31 @@ function checkRateLimit(key: string): boolean {
   return true
 }
 
+// Accepts both the new customer form format and the legacy operator format
 interface SubmitBody {
-  firstName: string
-  lastName: string
-  phone: string
-  email: string
-  address: string
-  treeHeight: TreeSubmission['tree_height']
+  // New customer form fields
+  customerName?: string
+  customerPhone?: string
+  customerEmail?: string
+  propertyAddress?: string
+  serviceType?: string
+  treeCount?: string
+  urgency?: string
+  bestTimeToCall?: string
+  additionalNotes?: string
+
+  // Legacy operator form fields
+  firstName?: string
+  lastName?: string
+  phone?: string
+  email?: string
+  address?: string
+  treeHeight?: TreeSubmission['tree_height']
   treeLocation?: string
   leanDirection?: TreeSubmission['lean_direction']
   proximity?: TreeSubmission['proximity_to_structures']
   notes?: string
+
   photoUrls: string[]
   source?: TreeSubmission['source']
 }
@@ -60,18 +75,22 @@ export async function POST(request: NextRequest) {
     const submission: Omit<TreeSubmission, 'ai_result'> = {
       id,
       created_at: new Date().toISOString(),
-      customer_name: `${body.firstName} ${body.lastName}`.trim(),
-      customer_phone: body.phone,
-      customer_email: body.email,
-      property_address: body.address,
-      tree_height: body.treeHeight,
+      customer_name: body.customerName ?? `${body.firstName ?? ''} ${body.lastName ?? ''}`.trim(),
+      customer_phone: body.customerPhone ?? body.phone ?? '',
+      customer_email: body.customerEmail ?? body.email ?? '',
+      property_address: body.propertyAddress ?? body.address ?? '',
+      tree_height: body.treeHeight ?? 'under_20ft',
       tree_location: body.treeLocation ?? '',
       lean_direction: body.leanDirection ?? 'none',
       proximity_to_structures: body.proximity ?? 'none',
-      additional_notes: body.notes ?? '',
+      additional_notes: body.additionalNotes ?? body.notes ?? '',
       photo_urls: body.photoUrls,
       status: 'pending',
       source: body.source === 'operator' ? 'operator' : 'customer',
+      service_type: body.serviceType ?? '',
+      tree_count: body.treeCount ?? '',
+      urgency: body.urgency ?? '',
+      best_time_to_call: body.bestTimeToCall ?? '',
     }
 
     const supabase = getServiceClient()
@@ -81,8 +100,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to save submission' }, { status: 500 })
     }
 
-    // Fire-and-forget email notification
+    // Fire-and-forget: internal operator notification
     sendEmailNotification(submission).catch(console.error)
+
+    // Email 1 — submission confirmed
+    // Only for customer submissions with an email address
+    if (
+      body.customerEmail &&
+      body.customerEmail.trim() !== '' &&
+      body.source !== 'operator'
+    ) {
+      try {
+        const { data: row } = await supabase
+          .from('submissions')
+          .select('reference_code')
+          .eq('id', id)
+          .single()
+
+        if (row?.reference_code) {
+          await sendSubmissionConfirmed({
+            customerName: body.customerName || 'there',
+            customerEmail: body.customerEmail,
+            referenceCode: row.reference_code,
+            trackingUrl: `${process.env.NEXT_PUBLIC_APP_URL}/track/${row.reference_code}`,
+          })
+        }
+      } catch (emailError) {
+        // Never block the submission response if email fails
+        console.error('Email 1 failed:', emailError)
+      }
+    }
 
     return NextResponse.json({ id })
   } catch (err) {
@@ -116,13 +163,13 @@ async function sendEmailNotification(submission: Omit<TreeSubmission, 'ai_result
       <p><strong>Phone:</strong> ${submission.customer_phone}</p>
       <p><strong>Email:</strong> ${submission.customer_email}</p>
       <p><strong>Address:</strong> ${submission.property_address}</p>
-      <p><strong>Tree Height:</strong> ${heightLabels[submission.tree_height] ?? submission.tree_height}</p>
-      <p><strong>Lean:</strong> ${submission.lean_direction}</p>
-      <p><strong>Proximity:</strong> ${submission.proximity_to_structures}</p>
+      ${submission.service_type ? `<p><strong>Service:</strong> ${submission.service_type}</p>` : ''}
+      ${submission.urgency ? `<p><strong>Urgency:</strong> ${submission.urgency}</p>` : ''}
+      ${submission.tree_height ? `<p><strong>Tree Height:</strong> ${heightLabels[submission.tree_height] ?? submission.tree_height}</p>` : ''}
       <p><strong>Photos:</strong> ${submission.photo_urls.length}</p>
       ${submission.additional_notes ? `<p><strong>Notes:</strong> ${submission.additional_notes}</p>` : ''}
       <p><a href="${process.env.NEXT_PUBLIC_APP_URL ?? 'https://your-app.vercel.app'}/results/${submission.id}">
-        View AI Assessment →
+        View Submission →
       </a></p>
     `,
   })

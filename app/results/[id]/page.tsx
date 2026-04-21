@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { getServiceClient } from '@/lib/supabase'
-import type { TreeSubmission } from '@/lib/types'
+import type { TreeSubmission, Job } from '@/lib/types'
 import ResultsContent from './ResultsContent'
 
 interface ResultsPageProps {
@@ -19,6 +19,16 @@ async function getSubmission(id: string): Promise<TreeSubmission | null> {
   return data as TreeSubmission
 }
 
+async function getJob(submissionId: string): Promise<Job | null> {
+  const supabase = getServiceClient()
+  const { data } = await supabase
+    .from('jobs')
+    .select('*')
+    .eq('submission_id', submissionId)
+    .single()
+  return (data as Job) ?? null
+}
+
 export async function generateMetadata({ params }: ResultsPageProps) {
   const submission = await getSubmission(params.id)
   if (!submission) return { title: 'Assessment Not Found' }
@@ -29,8 +39,18 @@ export async function generateMetadata({ params }: ResultsPageProps) {
 }
 
 export default async function ResultsPage({ params }: ResultsPageProps) {
-  const submission = await getSubmission(params.id)
+  const [submission, job] = await Promise.all([
+    getSubmission(params.id),
+    getJob(params.id),
+  ])
+
   if (!submission) notFound()
 
-  return <ResultsContent submission={submission} />
+  return (
+    <ResultsContent
+      submission={submission}
+      referenceCode={job?.reference_code ?? null}
+      job={job}
+    />
+  )
 }
