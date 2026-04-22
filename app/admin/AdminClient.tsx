@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Briefcase, MapPin, TreePine, Users, X, Trash2 } from 'lucide-react'
+import { Briefcase, MapPin, TreePine, Users, X, Trash2, Scissors, Circle, Zap, Layers, HelpCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase-client'
 import type { TreeSubmission, Flag, Job, JobStatus, Crew } from '@/lib/types'
 import { JOB_STATUS_CONFIG } from '@/lib/types'
@@ -12,6 +12,15 @@ import { getPipelineSteps, getStatusConfig } from '@/lib/jobs'
 
 const PAGE_SIZE = 20
 const AUTH_EXP_KEY = 'gp_admin_exp'
+
+const SERVICE_OPTIONS = [
+  { id: 'Tree Removal', label: 'Tree Removal', Icon: TreePine },
+  { id: 'Tree Trimming & Pruning', label: 'Tree Trimming & Pruning', Icon: Scissors },
+  { id: 'Stump Grinding', label: 'Stump Grinding', Icon: Circle },
+  { id: 'Storm Damage / Emergency', label: 'Storm Damage / Emergency', Icon: Zap },
+  { id: 'Land Clearing', label: 'Land Clearing', Icon: Layers },
+  { id: 'Not Sure — I Need Advice', label: 'Not Sure — I Need Advice', Icon: HelpCircle },
+] as const
 
 type AdminView = 'submissions' | 'pipeline'
 
@@ -594,7 +603,7 @@ export default function AdminClient() {
   const [newJobCreating, setNewJobCreating] = useState(false)
   const [newJob, setNewJob] = useState({
     customer_name: '', customer_phone: '', customer_email: '',
-    property_address: '', notes: '', assigned_to: '',
+    property_address: '', services: [] as string[], other_service: '', assigned_to: '',
   })
 
   const [activeFilter, setActiveFilter] = useState('all')
@@ -834,16 +843,27 @@ export default function AdminClient() {
   async function handleCreateJob(e: React.FormEvent) {
     e.preventDefault()
     setNewJobCreating(true)
+    const serviceType = [
+      ...newJob.services,
+      ...(newJob.other_service.trim() ? [newJob.other_service.trim()] : []),
+    ].join(', ')
     try {
       const res = await fetch('/api/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newJob),
+        body: JSON.stringify({
+          customer_name: newJob.customer_name,
+          customer_phone: newJob.customer_phone,
+          customer_email: newJob.customer_email,
+          property_address: newJob.property_address,
+          service_type: serviceType,
+          assigned_to: newJob.assigned_to,
+        }),
       })
       if (res.ok) {
         await loadJobs()
         setShowNewJobPanel(false)
-        setNewJob({ customer_name: '', customer_phone: '', customer_email: '', property_address: '', notes: '', assigned_to: '' })
+        setNewJob({ customer_name: '', customer_phone: '', customer_email: '', property_address: '', services: [], other_service: '', assigned_to: '' })
       }
     } finally {
       setNewJobCreating(false)
@@ -1126,16 +1146,56 @@ export default function AdminClient() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
                   What&apos;s Needed
                 </label>
-                <textarea
-                  rows={3}
-                  value={newJob.notes}
-                  onChange={e => setNewJob(j => ({ ...j, notes: e.target.value }))}
-                  placeholder="Describe the work — tree removal, trimming, stump grinding, etc."
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-700 resize-none"
-                />
+                <div className="space-y-1.5">
+                  {SERVICE_OPTIONS.map(({ id, label, Icon }) => {
+                    const selected = newJob.services.includes(id)
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => setNewJob(j => ({
+                          ...j,
+                          services: selected
+                            ? j.services.filter(s => s !== id)
+                            : [...j.services, id],
+                        }))}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-left transition-colors ${
+                          selected
+                            ? 'bg-green-800 text-white'
+                            : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
+                        }`}
+                      >
+                        <Icon size={14} className="flex-shrink-0" />
+                        {label}
+                      </button>
+                    )
+                  })}
+
+                  {/* Other */}
+                  <button
+                    type="button"
+                    onClick={() => document.getElementById('other-service-input')?.focus()}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-left transition-colors ${
+                      newJob.other_service
+                        ? 'bg-green-800 text-white'
+                        : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
+                    }`}
+                  >
+                    <HelpCircle size={14} className="flex-shrink-0" />
+                    Other
+                  </button>
+                  <input
+                    id="other-service-input"
+                    type="text"
+                    placeholder="Describe what's needed…"
+                    value={newJob.other_service}
+                    onChange={e => setNewJob(j => ({ ...j, other_service: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                  />
+                </div>
               </div>
 
               <div>

@@ -49,6 +49,7 @@ export async function createManualJob(params: {
   customer_phone: string
   customer_email: string
   property_address: string
+  service_type: string
   notes: string
   assigned_to?: string
 }): Promise<Job | null> {
@@ -60,6 +61,7 @@ export async function createManualJob(params: {
       customer_email: params.customer_email,
       property_address: params.property_address,
       additional_notes: params.notes,
+      service_type: params.service_type,
       source: 'operator',
       status: 'pending',
       photo_urls: [],
@@ -68,7 +70,6 @@ export async function createManualJob(params: {
       tree_location: '',
       lean_direction: 'none',
       proximity_to_structures: 'none',
-      service_type: '',
       tree_count: '',
       urgency: '',
       best_time_to_call: '',

@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
     customer_phone?: string
     customer_email?: string
     property_address?: string
+    service_type?: string
     notes?: string
     assigned_to?: string
   }
@@ -56,6 +57,7 @@ export async function POST(request: NextRequest) {
     property_address,
     customer_phone: body.customer_phone?.trim() ?? '',
     customer_email: body.customer_email?.trim() ?? '',
+    service_type: body.service_type?.trim() ?? '',
     notes: body.notes?.trim() ?? '',
     assigned_to: body.assigned_to?.trim() || undefined,
   })
