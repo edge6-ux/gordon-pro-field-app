@@ -92,6 +92,12 @@ export type JobReport = {
   estimatedDuration: string | null
 }
 
+export type Crew = {
+  id: string
+  name: string
+  created_at: string
+}
+
 export type JobStatusConfig = {
   label: string
   color: string

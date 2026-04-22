@@ -8,7 +8,7 @@ import {
   ChevronLeft, MapPin, Clock, Check, Camera, CheckCircle,
   FileText, ExternalLink, AlertTriangle, Info, X,
 } from 'lucide-react'
-import type { Job } from '@/lib/types'
+import type { Job, Crew } from '@/lib/types'
 import { JOB_STATUS_CONFIG } from '@/lib/types'
 import { getPipelineSteps, formatReference, isStepComplete, isStepCurrent } from '@/lib/jobs'
 
@@ -213,6 +213,12 @@ export default function JobDetailPage() {
   const [notesSaved, setNotesSaved] = useState(false)
   const [notesError, setNotesError] = useState(false)
 
+  // Crew assignment
+  const [crews, setCrews] = useState<Crew[]>([])
+  const [assignedCrew, setAssignedCrew] = useState('')
+  const [crewSaving, setCrewSaving] = useState(false)
+  const [crewSaved, setCrewSaved] = useState(false)
+
   // Status update
   const [statusUpdating, setStatusUpdating] = useState<string | null>(null)
 
@@ -242,6 +248,7 @@ export default function JobDetailPage() {
       setSchedTime(data.scheduled_time ?? '')
       setDuration(data.estimated_duration ?? '')
       setCrewNotes(data.crew_notes ?? '')
+      setAssignedCrew(data.assigned_to ?? '')
     } catch {
       setError(true)
     } finally {
@@ -250,6 +257,13 @@ export default function JobDetailPage() {
   }, [id])
 
   useEffect(() => { void fetchJob() }, [fetchJob])
+
+  useEffect(() => {
+    fetch('/api/crews')
+      .then(r => r.json())
+      .then((data: Crew[]) => setCrews(Array.isArray(data) ? data : []))
+      .catch(() => {})
+  }, [])
 
   // ── Patch helper ─────────────────────────────────────────────────────────────
 
@@ -295,6 +309,32 @@ export default function JobDetailPage() {
       showToast('Job cancelled')
     } else {
       showToast('Failed to cancel job', 'error')
+    }
+  }
+
+  // ── Crew assignment ──────────────────────────────────────────────────────────
+
+  async function handleSaveAssignment() {
+    setCrewSaving(true)
+    setCrewSaved(false)
+    const shouldAutoAssign =
+      assignedCrew && (job?.status === 'submitted' || job?.status === 'reviewed')
+    try {
+      const updated = await patchJob({
+        assigned_to: assignedCrew || '',
+        ...(shouldAutoAssign ? { status: 'assigned' } : {}),
+      })
+      if (updated) {
+        setJob(updated)
+        setCrewSaved(true)
+        setTimeout(() => setCrewSaved(false), 2000)
+      } else {
+        showToast('Failed to save assignment', 'error')
+      }
+    } catch {
+      showToast('Failed to save assignment', 'error')
+    } finally {
+      setCrewSaving(false)
     }
   }
 
@@ -573,6 +613,31 @@ export default function JobDetailPage() {
                   style={{ background: '#1C3A2B' }}
                 >
                   {scheduleSaving ? 'Saving...' : scheduleSaved ? 'Saved ✓' : 'Save Schedule'}
+                </button>
+              </div>
+            </Card>
+
+            {/* Crew assignment */}
+            <Card>
+              <CardTitle>Assign Crew</CardTitle>
+              <div className="space-y-3">
+                <select
+                  value={assignedCrew}
+                  onChange={e => setAssignedCrew(e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="">Unassigned</option>
+                  {crews.map(c => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => void handleSaveAssignment()}
+                  disabled={crewSaving}
+                  className="font-body px-6 py-2.5 rounded-lg text-[14px] text-white transition-opacity disabled:opacity-60"
+                  style={{ background: '#1C3A2B' }}
+                >
+                  {crewSaving ? 'Saving...' : crewSaved ? 'Saved ✓' : 'Save Assignment'}
                 </button>
               </div>
             </Card>

@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Briefcase, MapPin, TreePine } from 'lucide-react'
+import { Briefcase, MapPin, TreePine, Users, X, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase-client'
-import type { TreeSubmission, Flag, Job, JobStatus } from '@/lib/types'
+import type { TreeSubmission, Flag, Job, JobStatus, Crew } from '@/lib/types'
 import { JOB_STATUS_CONFIG } from '@/lib/types'
 import { getPipelineSteps, getStatusConfig } from '@/lib/jobs'
 
@@ -39,20 +39,6 @@ const STATUS_LABELS: Record<string, string> = {
   completed: 'Completed',
 }
 
-const HEIGHT_LABELS: Record<string, string> = {
-  under_20ft: 'Under 20 ft',
-  '20_40ft': '20–40 ft',
-  '40_60ft': '40–60 ft',
-  over_60ft: 'Over 60 ft',
-}
-
-const LEAN_LABELS: Record<string, string> = {
-  none: 'None', slight: 'Slight', moderate: 'Moderate', severe: 'Severe',
-}
-
-const PROX_LABELS: Record<string, string> = {
-  none: 'None', close: 'Close', very_close: 'Very Close', contact: 'Contact',
-}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -155,6 +141,12 @@ function JobCard({ job, onClick }: { job: Job; onClick: () => void }) {
         <span className="font-mono text-[10px] text-gray-400">{job.reference_code}</span>
         <span className="text-[10px] text-gray-400">{timeAgo(job.created_at)}</span>
       </div>
+      {job.assigned_to && (
+        <div className="flex items-center gap-1 mt-1">
+          <Users size={10} className="text-gray-400 flex-shrink-0" />
+          <span className="text-[10px] text-gray-500 truncate">{job.assigned_to}</span>
+        </div>
+      )}
       {species && (
         <div className="flex items-center gap-1 mt-2 pt-2" style={{ borderTop: '1px solid #F3F4F6' }}>
           <TreePine size={11} color="#C8922A" className="flex-shrink-0" />
@@ -367,12 +359,29 @@ function SubmissionCard({
               <p className="text-gray-600 pt-1">{sub.property_address}</p>
             </div>
             <div className="space-y-1">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Tree Details</p>
-              <p className="text-gray-800">{HEIGHT_LABELS[sub.tree_height] ?? sub.tree_height}</p>
-              <p className="text-gray-600">Lean: {LEAN_LABELS[sub.lean_direction] ?? sub.lean_direction}</p>
-              <p className="text-gray-600">Proximity: {PROX_LABELS[sub.proximity_to_structures] ?? sub.proximity_to_structures}</p>
-              {sub.tree_location && (
-                <p className="text-gray-500 text-xs pt-1">{sub.tree_location}</p>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Job Details</p>
+              {sub.service_type && (
+                <p className="text-gray-800 font-medium">{sub.service_type}</p>
+              )}
+              {sub.tree_count && sub.tree_count !== 'N/A' && (
+                <p className="text-gray-600">Trees: {sub.tree_count}</p>
+              )}
+              {sub.urgency && (
+                <p className={`font-medium text-sm ${
+                  sub.urgency === 'Emergency'
+                    ? 'text-red-600'
+                    : sub.urgency === 'Soon'
+                    ? 'text-amber-600'
+                    : 'text-gray-600'
+                }`}>
+                  {sub.urgency === 'Emergency' ? '⚡ Emergency' : sub.urgency}
+                </p>
+              )}
+              {sub.best_time_to_call && (
+                <p className="text-gray-500 text-xs pt-1">Best time to call: {sub.best_time_to_call}</p>
+              )}
+              {sub.additional_notes && (
+                <p className="text-gray-500 text-xs pt-1 italic">&ldquo;{sub.additional_notes}&rdquo;</p>
               )}
             </div>
           </div>
@@ -575,6 +584,19 @@ export default function AdminClient() {
   const [jobsLoading, setJobsLoading] = useState(false)
   const [jobsError, setJobsError] = useState(false)
 
+  const [crews, setCrews] = useState<Crew[]>([])
+  const [showCrewPanel, setShowCrewPanel] = useState(false)
+  const [newCrewName, setNewCrewName] = useState('')
+  const [newCrewPin, setNewCrewPin] = useState('')
+  const [crewCreating, setCrewCreating] = useState(false)
+
+  const [showNewJobPanel, setShowNewJobPanel] = useState(false)
+  const [newJobCreating, setNewJobCreating] = useState(false)
+  const [newJob, setNewJob] = useState({
+    customer_name: '', customer_phone: '', customer_email: '',
+    property_address: '', notes: '', assigned_to: '',
+  })
+
   const [activeFilter, setActiveFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -623,12 +645,21 @@ export default function AdminClient() {
     }
   }, [])
 
+  const loadCrews = useCallback(async () => {
+    try {
+      const res = await fetch('/api/crews')
+      const data = await res.json() as Crew[]
+      setCrews(Array.isArray(data) ? data : [])
+    } catch { /* silent */ }
+  }, [])
+
   useEffect(() => {
     if (authed) {
       loadSubmissions(0, false)
       void loadJobs()
+      void loadCrews()
     }
-  }, [authed, loadSubmissions, loadJobs])
+  }, [authed, loadSubmissions, loadJobs, loadCrews])
 
   useEffect(() => {
     if (!authed) return
@@ -769,8 +800,54 @@ export default function AdminClient() {
     setAuthed(false)
     setSubmissions([])
     setJobs([])
+    setCrews([])
     setOffset(0)
     setPassword('')
+  }
+
+  async function handleCreateCrew(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newCrewName.trim()) return
+    setCrewCreating(true)
+    try {
+      const res = await fetch('/api/crews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newCrewName.trim(), pin: newCrewPin.trim() || '0000' }),
+      })
+      if (res.ok) {
+        await loadCrews()
+        setNewCrewName('')
+        setNewCrewPin('')
+      }
+    } finally {
+      setCrewCreating(false)
+    }
+  }
+
+  async function handleDeleteCrew(id: string, name: string) {
+    if (!window.confirm(`Delete crew "${name}"?`)) return
+    await fetch(`/api/crews/${id}`, { method: 'DELETE' })
+    await loadCrews()
+  }
+
+  async function handleCreateJob(e: React.FormEvent) {
+    e.preventDefault()
+    setNewJobCreating(true)
+    try {
+      const res = await fetch('/api/jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newJob),
+      })
+      if (res.ok) {
+        await loadJobs()
+        setShowNewJobPanel(false)
+        setNewJob({ customer_name: '', customer_phone: '', customer_email: '', property_address: '', notes: '', assigned_to: '' })
+      }
+    } finally {
+      setNewJobCreating(false)
+    }
   }
 
   if (checkingAuth) {
@@ -820,12 +897,27 @@ export default function AdminClient() {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-green-900 text-white px-4 py-4 flex items-center justify-between sticky top-0 z-10">
         <h1 className="font-heading text-lg font-bold">Gordon Pro Admin</h1>
-        <button
-          onClick={handleLogout}
-          className="text-sm text-green-300 hover:text-white transition-colors"
-        >
-          Sign Out
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setShowNewJobPanel(true)}
+            className="flex items-center gap-1.5 text-sm bg-green-700 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg transition-colors font-medium"
+          >
+            + New Job
+          </button>
+          <button
+            onClick={() => setShowCrewPanel(true)}
+            className="flex items-center gap-1.5 text-sm text-green-300 hover:text-white transition-colors"
+          >
+            <Users size={15} />
+            Crews
+          </button>
+          <button
+            onClick={handleLogout}
+            className="text-sm text-green-300 hover:text-white transition-colors"
+          >
+            Sign Out
+          </button>
+        </div>
       </header>
 
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-5">
@@ -969,6 +1061,207 @@ export default function AdminClient() {
       </div>
 
       {/* Photo lightbox */}
+      {/* New job panel */}
+      {showNewJobPanel && (
+        <div className="fixed inset-0 z-40 flex">
+          <div className="flex-1 bg-black/40" onClick={() => setShowNewJobPanel(false)} />
+          <div className="bg-white w-96 h-full shadow-2xl flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h2 className="font-heading text-[18px] text-gray-900">New Job</h2>
+              <button onClick={() => setShowNewJobPanel(false)} className="text-gray-400 hover:text-gray-700 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateJob} className="flex-1 overflow-y-auto p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                  Customer Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newJob.customer_name}
+                  onChange={e => setNewJob(j => ({ ...j, customer_name: e.target.value }))}
+                  placeholder="Full name"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                  Property Address <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newJob.property_address}
+                  onChange={e => setNewJob(j => ({ ...j, property_address: e.target.value }))}
+                  placeholder="123 Main St, City, State"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Phone</label>
+                  <input
+                    type="tel"
+                    value={newJob.customer_phone}
+                    onChange={e => setNewJob(j => ({ ...j, customer_phone: e.target.value }))}
+                    placeholder="(555) 000-0000"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Email</label>
+                  <input
+                    type="email"
+                    value={newJob.customer_email}
+                    onChange={e => setNewJob(j => ({ ...j, customer_email: e.target.value }))}
+                    placeholder="email@example.com"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                  What&apos;s Needed
+                </label>
+                <textarea
+                  rows={3}
+                  value={newJob.notes}
+                  onChange={e => setNewJob(j => ({ ...j, notes: e.target.value }))}
+                  placeholder="Describe the work — tree removal, trimming, stump grinding, etc."
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-700 resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                  Assign to Crew
+                </label>
+                <select
+                  value={newJob.assigned_to}
+                  onChange={e => setNewJob(j => ({ ...j, assigned_to: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-700 bg-white"
+                >
+                  <option value="">Unassigned</option>
+                  {crews.map(c => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowNewJobPanel(false)}
+                  className="flex-1 border border-gray-200 text-gray-600 rounded-lg py-2.5 text-sm font-medium hover:border-gray-400 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={newJobCreating}
+                  className="flex-1 bg-green-800 text-white rounded-lg py-2.5 text-sm font-semibold hover:bg-green-700 disabled:opacity-60 transition-colors"
+                >
+                  {newJobCreating ? 'Creating…' : 'Create Job'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Crew management panel */}
+      {showCrewPanel && (
+        <div className="fixed inset-0 z-40 flex">
+          <div
+            className="flex-1 bg-black/40"
+            onClick={() => setShowCrewPanel(false)}
+          />
+          <div className="bg-white w-80 h-full shadow-2xl flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h2 className="font-heading text-[18px] text-gray-900">Manage Crews</h2>
+              <button
+                onClick={() => setShowCrewPanel(false)}
+                className="text-gray-400 hover:text-gray-700 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 space-y-6">
+              {/* Create form */}
+              <form onSubmit={handleCreateCrew} className="space-y-3">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">New Crew</p>
+                <input
+                  type="text"
+                  placeholder="Crew name"
+                  value={newCrewName}
+                  onChange={e => setNewCrewName(e.target.value)}
+                  required
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="PIN (default: 0000)"
+                  value={newCrewPin}
+                  onChange={e => setNewCrewPin(e.target.value)}
+                  maxLength={10}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                />
+                <button
+                  type="submit"
+                  disabled={crewCreating || !newCrewName.trim()}
+                  className="w-full bg-green-800 text-white rounded-lg py-2.5 text-sm font-semibold hover:bg-green-700 disabled:opacity-60 transition-colors"
+                >
+                  {crewCreating ? 'Creating…' : 'Create Crew'}
+                </button>
+              </form>
+
+              {/* Crew list */}
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                  {crews.length === 0 ? 'No crews yet' : `${crews.length} crew${crews.length !== 1 ? 's' : ''}`}
+                </p>
+                <div className="space-y-2">
+                  {crews.map(crew => (
+                    <div
+                      key={crew.id}
+                      className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-3"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                          <Users size={13} className="text-green-700" />
+                        </div>
+                        <span className="text-sm font-medium text-gray-800">{crew.name}</span>
+                      </div>
+                      <button
+                        onClick={() => void handleDeleteCrew(crew.id, crew.name)}
+                        className="text-gray-300 hover:text-red-500 transition-colors p-1"
+                        aria-label={`Delete ${crew.name}`}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  Crews log in at <span className="font-mono text-gray-600">/crew</span> using their name and PIN to see assigned jobs.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {lightboxUrl && (
         <div
           className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
