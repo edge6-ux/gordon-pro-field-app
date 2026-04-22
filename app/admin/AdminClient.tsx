@@ -1174,27 +1174,25 @@ export default function AdminClient() {
                     )
                   })}
 
-                  {/* Other */}
-                  <button
-                    type="button"
-                    onClick={() => document.getElementById('other-service-input')?.focus()}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-left transition-colors ${
-                      newJob.other_service
-                        ? 'bg-green-800 text-white'
-                        : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
-                    }`}
-                  >
-                    <HelpCircle size={14} className="flex-shrink-0" />
-                    Other
-                  </button>
-                  <input
-                    id="other-service-input"
-                    type="text"
-                    placeholder="Describe what's needed…"
-                    value={newJob.other_service}
-                    onChange={e => setNewJob(j => ({ ...j, other_service: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
-                  />
+                  {/* Other — inline input styled like the other buttons */}
+                  <div className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border transition-colors ${
+                    newJob.other_service
+                      ? 'bg-green-800 border-green-800'
+                      : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                  }`}>
+                    <HelpCircle size={14} className={`flex-shrink-0 ${newJob.other_service ? 'text-white' : 'text-gray-500'}`} />
+                    <input
+                      type="text"
+                      placeholder="Other — describe what's needed…"
+                      value={newJob.other_service}
+                      onChange={e => setNewJob(j => ({ ...j, other_service: e.target.value }))}
+                      className={`flex-1 bg-transparent outline-none text-sm ${
+                        newJob.other_service
+                          ? 'text-white placeholder:text-green-200'
+                          : 'text-gray-700 placeholder:text-gray-400'
+                      }`}
+                    />
+                  </div>
                 </div>
               </div>
 
