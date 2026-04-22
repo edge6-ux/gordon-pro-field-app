@@ -161,7 +161,8 @@ export async function getAllJobs(filters?: {
       submission:submissions!submission_id(
         ai_result,
         photo_urls,
-        source
+        source,
+        service_type
       )
     `)
     .order('created_at', { ascending: false })

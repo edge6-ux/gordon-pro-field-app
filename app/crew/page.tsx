@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { MapPin, Calendar, AlertTriangle, ChevronRight, LogOut } from 'lucide-react'
+import { MapPin, Calendar, ChevronDown, LogOut, FileText } from 'lucide-react'
 import type { Job, Crew } from '@/lib/types'
 import { JOB_STATUS_CONFIG } from '@/lib/types'
 
@@ -10,12 +10,6 @@ const ACTIVE_STATUSES = ['submitted', 'reviewed', 'assigned', 'in_progress'] as 
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
-function topFlag(flags: { severity: string }[] = []) {
-  if (flags.some(f => f.severity === 'stop')) return 'stop'
-  if (flags.some(f => f.severity === 'caution')) return 'caution'
-  return null
 }
 
 function StatusBadge({ status }: { status: Job['status'] }) {
@@ -30,65 +24,94 @@ function StatusBadge({ status }: { status: Job['status'] }) {
   )
 }
 
-function JobCard({ job }: { job: Job }) {
-  const flags = job.submission?.ai_result?.flags ?? []
-  const flag = topFlag(flags)
+function JobCard({ job, expanded, onToggle }: { job: Job; expanded: boolean; onToggle: () => void }) {
+  const serviceType = job.submission?.service_type || ''
 
   return (
-    <a
-      href={job.submission_id ? `/results/${job.submission_id}` : '#'}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="block bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow"
-      style={flag === 'stop' ? { borderLeftWidth: 4, borderLeftColor: '#E24B4A' } : flag === 'caution' ? { borderLeftWidth: 4, borderLeftColor: '#F59E0B' } : {}}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap mb-1">
-            <StatusBadge status={job.status} />
-            <span className="font-mono text-[11px] text-gray-400">{job.reference_code}</span>
-            {flag === 'stop' && (
-              <span className="flex items-center gap-0.5 text-[11px] font-semibold text-red-600">
-                <AlertTriangle size={11} /> Stop flag
-              </span>
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <button
+        onClick={onToggle}
+        className="w-full text-left p-4 hover:bg-gray-50 transition-colors"
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap mb-1">
+              <StatusBadge status={job.status} />
+              <span className="font-mono text-[11px] text-gray-400">{job.reference_code}</span>
+            </div>
+            <p className="font-semibold text-[15px] text-gray-900 truncate">{job.customer_name}</p>
+            {job.property_address && (
+              <div className="flex items-center gap-1 mt-0.5">
+                <MapPin size={12} className="text-gray-400 flex-shrink-0" />
+                <span className="text-[13px] text-gray-500 truncate">{job.property_address}</span>
+              </div>
             )}
-            {flag === 'caution' && !flags.some(f => f.severity === 'stop') && (
-              <span className="flex items-center gap-0.5 text-[11px] font-semibold text-amber-600">
-                <AlertTriangle size={11} /> Caution
-              </span>
+            {job.scheduled_date && (
+              <div className="flex items-center gap-1 mt-1">
+                <Calendar size={12} className="text-gray-400 flex-shrink-0" />
+                <span className="text-[13px] text-gray-600">
+                  {fmtDate(job.scheduled_date)}
+                  {job.scheduled_time && ` at ${job.scheduled_time}`}
+                  {job.estimated_duration && ` · ${job.estimated_duration}`}
+                </span>
+              </div>
             )}
           </div>
-          <p className="font-semibold text-[15px] text-gray-900 truncate">{job.customer_name || 'Field Assessment'}</p>
-          {job.property_address && (
-            <div className="flex items-center gap-1 mt-0.5">
-              <MapPin size={12} className="text-gray-400 flex-shrink-0" />
-              <span className="text-[13px] text-gray-500 truncate">{job.property_address}</span>
-            </div>
-          )}
-          {job.scheduled_date && (
-            <div className="flex items-center gap-1 mt-1">
-              <Calendar size={12} className="text-gray-400 flex-shrink-0" />
-              <span className="text-[13px] text-gray-600">
-                {fmtDate(job.scheduled_date)}
-                {job.scheduled_time && ` at ${job.scheduled_time}`}
-                {job.estimated_duration && ` · ${job.estimated_duration}`}
-              </span>
-            </div>
-          )}
-          {job.submission?.ai_result?.species_name && (
-            <p className="text-[12px] text-amber-700 mt-1 truncate">
-              {job.submission.ai_result.species_name}
-            </p>
-          )}
-          {job.crew_notes && (
-            <p className="text-[12px] text-gray-500 mt-1 italic line-clamp-2">
-              &ldquo;{job.crew_notes}&rdquo;
-            </p>
-          )}
+          <ChevronDown
+            size={16}
+            className={`text-gray-400 flex-shrink-0 mt-1 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+          />
         </div>
-        <ChevronRight size={16} className="text-gray-300 flex-shrink-0 mt-1" />
-      </div>
-    </a>
+      </button>
+
+      {expanded && (
+        <div className="border-t border-gray-100 px-4 py-4 space-y-4">
+          <div className="grid grid-cols-1 gap-3 text-sm">
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Customer</p>
+              <p className="text-gray-900 font-medium">{job.customer_name}</p>
+              {job.customer_phone && (
+                <a href={`tel:${job.customer_phone}`} className="block text-green-700 hover:underline text-sm mt-0.5">
+                  {job.customer_phone}
+                </a>
+              )}
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Address</p>
+              <p className="text-gray-800">{job.property_address}</p>
+            </div>
+
+            {serviceType && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Work Needed</p>
+                <p className="text-gray-800">{serviceType}</p>
+              </div>
+            )}
+
+            {job.scheduled_date && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Scheduled</p>
+                <p className="text-gray-800">
+                  {fmtDate(job.scheduled_date)}
+                  {job.scheduled_time && ` at ${job.scheduled_time}`}
+                  {job.estimated_duration && (
+                    <span className="text-gray-500"> · {job.estimated_duration}</span>
+                  )}
+                </p>
+              </div>
+            )}
+
+            {job.crew_notes && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Notes from Admin</p>
+                <p className="text-gray-700 bg-gray-50 rounded-lg px-3 py-2 text-sm">{job.crew_notes}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -104,6 +127,7 @@ export default function CrewPage() {
 
   const [jobs, setJobs] = useState<Job[]>([])
   const [jobsLoading, setJobsLoading] = useState(false)
+  const [expandedJobId, setExpandedJobId] = useState<string | null>(null)
 
   useEffect(() => {
     const raw = localStorage.getItem(SESS_KEY)
@@ -175,6 +199,7 @@ export default function CrewPage() {
     setJobs([])
     setPin('')
     setSelectedCrewId('')
+    setExpandedJobId(null)
   }
 
   if (!session) {
@@ -232,11 +257,6 @@ export default function CrewPage() {
     )
   }
 
-  const byStatus = ACTIVE_STATUSES.reduce((acc, s) => {
-    acc[s] = jobs.filter(j => j.status === s)
-    return acc
-  }, {} as Record<string, Job[]>)
-
   const scheduled = jobs.filter(j => j.scheduled_date).sort(
     (a, b) => a.scheduled_date!.localeCompare(b.scheduled_date!)
   )
@@ -276,8 +296,9 @@ export default function CrewPage() {
             ))}
           </div>
         ) : jobs.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-10 text-center text-gray-400 text-sm">
-            No active jobs assigned to {session.name}.
+          <div className="bg-white rounded-xl border border-gray-200 p-10 text-center">
+            <FileText size={32} className="text-gray-300 mx-auto mb-3" />
+            <p className="text-sm text-gray-400">No active jobs assigned to {session.name}.</p>
           </div>
         ) : (
           <div className="space-y-6">
@@ -285,7 +306,14 @@ export default function CrewPage() {
               <section>
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Scheduled</p>
                 <div className="space-y-3">
-                  {scheduled.map(job => <JobCard key={job.id} job={job} />)}
+                  {scheduled.map(job => (
+                    <JobCard
+                      key={job.id}
+                      job={job}
+                      expanded={expandedJobId === job.id}
+                      onToggle={() => setExpandedJobId(prev => prev === job.id ? null : job.id)}
+                    />
+                  ))}
                 </div>
               </section>
             )}
@@ -293,7 +321,14 @@ export default function CrewPage() {
               <section>
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Unscheduled</p>
                 <div className="space-y-3">
-                  {unscheduled.map(job => <JobCard key={job.id} job={job} />)}
+                  {unscheduled.map(job => (
+                    <JobCard
+                      key={job.id}
+                      job={job}
+                      expanded={expandedJobId === job.id}
+                      onToggle={() => setExpandedJobId(prev => prev === job.id ? null : job.id)}
+                    />
+                  ))}
                 </div>
               </section>
             )}
