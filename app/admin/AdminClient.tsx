@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Briefcase, MapPin, TreePine, Users, X, Trash2, Scissors, Circle, Zap, Layers, HelpCircle } from 'lucide-react'
-import { supabase } from '@/lib/supabase-client'
 import type { TreeSubmission, Flag, Job, JobStatus, Crew } from '@/lib/types'
 import { JOB_STATUS_CONFIG } from '@/lib/types'
 import { getPipelineSteps, getStatusConfig } from '@/lib/jobs'
@@ -672,26 +671,31 @@ export default function AdminClient() {
 
   useEffect(() => {
     if (!authed) return
-    const channel = supabase
-      .channel('admin-new-submissions')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'submissions' },
-        (payload) => {
-          const newSub = payload.new as TreeSubmission
-          setSubmissions(prev => [newSub, ...prev])
-          setFlashIds(prev => { const s = new Set(prev); s.add(newSub.id); return s })
-          setTimeout(() => {
-            setFlashIds(prev => {
-              const next = new Set(prev)
-              next.delete(newSub.id)
-              return next
-            })
-          }, 3000)
-        }
-      )
-      .subscribe()
-    return () => { void supabase.removeChannel(channel) }
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/submissions?limit=5&offset=0`)
+        const json = await res.json() as { submissions: TreeSubmission[] }
+        const latest = json.submissions ?? []
+        setSubmissions(prev => {
+          const existingIds = new Set(prev.map(s => s.id))
+          const newItems = latest.filter(s => !existingIds.has(s.id))
+          if (newItems.length === 0) return prev
+          setFlashIds(fids => {
+            const next = new Set(fids)
+            newItems.forEach(s => next.add(s.id))
+            setTimeout(() => setFlashIds(f => {
+              const n = new Set(f)
+              newItems.forEach(s => n.delete(s.id))
+              return n
+            }), 3000)
+            return next
+          })
+          return [...newItems, ...prev]
+        })
+      } catch { /* silent */ }
+    }
+    const interval = setInterval(() => { void poll() }, 30_000)
+    return () => clearInterval(interval)
   }, [authed])
 
   const filtered = useMemo(() => {
