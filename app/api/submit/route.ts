@@ -84,6 +84,7 @@ export async function POST(request: NextRequest) {
     } = await request.json() as SubmitBody
 
     const submissionId = uuidv4()
+    const jobReferenceCode = crypto.randomUUID().replace(/-/g, '').substring(0, 8).toUpperCase()
 
     const supabase = getServiceClient()
     const { error } = await supabase.from('submissions').insert({
@@ -105,6 +106,26 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Supabase insert error:', error)
       return NextResponse.json({ error: 'Failed to save submission' }, { status: 500 })
+    }
+
+    // Create a job record immediately so the status pipeline is visible to the customer
+    const { error: jobError } = await supabase.from('jobs').insert({
+      submission_id:    submissionId,
+      customer_name:    customerName ?? '',
+      customer_phone:   customerPhone ?? '',
+      customer_email:   customerEmail ?? '',
+      property_address: propertyAddress ?? '',
+      status:           'submitted',
+      assigned_to:      '',
+      assigned_at:      null,
+      reference_code:   jobReferenceCode,
+      crew_notes:       '',
+      onsite_photo_urls: [],
+      report_generated: false,
+    })
+    if (jobError) {
+      console.error('Job insert error:', jobError)
+      // Non-fatal — submission is saved; job creation failure shouldn't block the customer
     }
 
     // Fire-and-forget: internal operator notification
@@ -137,21 +158,12 @@ export async function POST(request: NextRequest) {
       source !== 'operator'
     ) {
       try {
-        // Try to get the DB-generated reference code; fall back to ID slice
-        const { data: row } = await supabase
-          .from('submissions')
-          .select('reference_code')
-          .eq('id', submissionId)
-          .single()
-
-        const referenceCode = row?.reference_code ?? submissionId.slice(0, 8).toUpperCase()
         const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/+$/, '')
-
         await sendSubmissionConfirmed({
           customerName: customerName || 'there',
           customerEmail: customerEmail,
-          referenceCode,
-          trackingUrl: `${appUrl}/track/${referenceCode}`,
+          referenceCode: jobReferenceCode,
+          trackingUrl: `${appUrl}/track/${jobReferenceCode}`,
         })
       } catch (emailError) {
         // Never block the submission response if email fails

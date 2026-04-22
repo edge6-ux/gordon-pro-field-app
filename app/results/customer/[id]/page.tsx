@@ -146,7 +146,8 @@ export default async function CustomerResultsPage({
     : []
 
   const isComplete = job?.status === 'complete'
-  const stepIndex  = job ? STATUS_STEPS.findIndex(s => s.key === job.status) : -1
+  // If no job exists yet, show the bar at step 0 (Received)
+  const stepIndex  = job ? STATUS_STEPS.findIndex(s => s.key === job.status) : 0
 
   return (
     <div className="min-h-screen bg-[#F5F2ED]">
@@ -200,7 +201,7 @@ export default async function CustomerResultsPage({
         </div>
 
         {/* ─── STATUS SECTION ─── */}
-        {job && (
+        {(job || true) && (
           <div
             className="bg-white rounded-2xl p-6"
             style={{ border: '1px solid #E5E7EB', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
@@ -310,7 +311,7 @@ export default async function CustomerResultsPage({
             </div>
 
             <p className="font-body text-[14px] text-center mt-4" style={{ color: '#888780' }}>
-              {STATUS_DESCRIPTIONS[job.status] ?? ''}
+              {STATUS_DESCRIPTIONS[job?.status ?? 'submitted'] ?? ''}
             </p>
           </div>
         )}
