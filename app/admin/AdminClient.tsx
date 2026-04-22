@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Briefcase, MapPin, TreePine } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase-client'
 import type { TreeSubmission, Flag, Job, JobStatus } from '@/lib/types'
 import { JOB_STATUS_CONFIG } from '@/lib/types'
 import { getPipelineSteps, getStatusConfig } from '@/lib/jobs'
