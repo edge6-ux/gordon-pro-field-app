@@ -129,7 +129,7 @@ export default async function CustomerResultsPage({
   const hasAI      = aiResult !== null && aiResult !== undefined
 
   const referenceCode =
-    submission.reference_code ?? submission.id.slice(0, 8).toUpperCase()
+    job?.reference_code ?? submission.reference_code ?? submission.id.slice(0, 8).toUpperCase()
 
   const blurb =
     hasAI && aiResult?.species_description
