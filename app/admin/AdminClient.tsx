@@ -368,6 +368,9 @@ function SubmissionCard({
             </div>
             <div className="space-y-1">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Job Details</p>
+              {job?.reference_code && (
+                <p className="font-mono text-xs text-gray-500 tracking-wide">{job.reference_code}</p>
+              )}
               {sub.service_type && (
                 <p className="text-gray-800 font-medium">{sub.service_type}</p>
               )}
