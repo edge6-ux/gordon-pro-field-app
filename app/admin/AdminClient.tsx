@@ -29,24 +29,10 @@ type SubmissionWithJob = TreeSubmission & {
 
 const FILTERS = [
   { label: 'All', value: 'all' },
-  { label: 'Pending', value: 'status:pending' },
-  { label: 'Reviewed', value: 'status:reviewed' },
-  { label: 'Quoted', value: 'status:quoted' },
-  { label: 'Scheduled', value: 'status:scheduled' },
-  { label: 'Completed', value: 'status:completed' },
   { label: 'Customer', value: 'source:customer' },
   { label: 'Operator', value: 'source:operator' },
   { label: 'Flagged', value: 'flagged' },
 ]
-
-const STATUS_LABELS: Record<string, string> = {
-  pending: 'Pending',
-  reviewed: 'Reviewed',
-  quoted: 'Quoted',
-  scheduled: 'Scheduled',
-  completed: 'Completed',
-}
-
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -62,17 +48,6 @@ function cardBorderClass(flags: Flag[] = []) {
   if (sev === 'stop') return 'border-l-red-500'
   if (sev === 'caution') return 'border-l-yellow-400'
   return 'border-l-green-600'
-}
-
-function statusBadgeClass(status: string) {
-  switch (status) {
-    case 'pending': return 'bg-gray-100 text-gray-600'
-    case 'reviewed': return 'bg-blue-100 text-blue-700'
-    case 'quoted': return 'bg-purple-100 text-purple-700'
-    case 'scheduled': return 'bg-orange-100 text-orange-700'
-    case 'completed': return 'bg-green-100 text-green-700'
-    default: return 'bg-gray-100 text-gray-600'
-  }
 }
 
 function flagBadgeClass(severity: string) {
@@ -281,20 +256,17 @@ interface CardProps {
   job: SubmissionWithJob['job']
   expanded: boolean
   flashing: boolean
-  statusSaving: boolean
-  statusSaved: boolean
   notesStatus: 'saving' | 'saved' | 'error' | null
   notesDraft: string
   onToggle: () => void
-  onStatusChange: (status: string) => void
   onNotesDraftChange: (val: string) => void
   onNotesSave: () => void
   onPhotoClick: (url: string) => void
 }
 
 function SubmissionCard({
-  sub, job, expanded, flashing, statusSaving, statusSaved, notesStatus,
-  notesDraft, onToggle, onStatusChange, onNotesDraftChange, onNotesSave, onPhotoClick,
+  sub, job, expanded, flashing, notesStatus,
+  notesDraft, onToggle, onNotesDraftChange, onNotesSave, onPhotoClick,
 }: CardProps) {
   const flags = sub.ai_result?.flags ?? []
   const severity = topSeverity(flags)
@@ -312,9 +284,6 @@ function SubmissionCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-gray-900 text-sm">{sub.customer_name}</span>
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadgeClass(sub.status)}`}>
-              {STATUS_LABELS[sub.status]}
-            </span>
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${sub.source === 'operator' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'}`}>
               {sub.source === 'operator' ? 'Operator' : 'Customer'}
             </span>
@@ -485,53 +454,27 @@ function SubmissionCard({
             </div>
           )}
 
-          {/* Status + Internal Notes */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-                Status
-              </label>
-              <div className="flex items-center gap-2">
-                <select
-                  value={sub.status}
-                  onChange={e => onStatusChange(e.target.value)}
-                  disabled={statusSaving}
-                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-700 disabled:opacity-60"
-                >
-                  {(['pending', 'reviewed', 'quoted', 'scheduled', 'completed'] as const).map(s => (
-                    <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-                  ))}
-                </select>
-                {statusSaving && <Spinner size="sm" />}
-                {!statusSaving && statusSaved && (
-                  <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                  </svg>
-                )}
+          {/* Internal Notes */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+              Internal Notes
+            </label>
+            <textarea
+              value={notesDraft}
+              onChange={e => onNotesDraftChange(e.target.value)}
+              onBlur={onNotesSave}
+              rows={3}
+              placeholder="Add internal notes…"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-700 resize-none"
+            />
+            {notesStatus === 'saving' && <p className="text-xs text-gray-400 mt-1">Saving…</p>}
+            {notesStatus === 'saved' && <p className="text-xs text-green-600 mt-1">Saved ✓</p>}
+            {notesStatus === 'error' && (
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-xs text-red-600">Failed to save</p>
+                <button onClick={onNotesSave} className="text-xs text-green-700 underline">Retry</button>
               </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-                Internal Notes
-              </label>
-              <textarea
-                value={notesDraft}
-                onChange={e => onNotesDraftChange(e.target.value)}
-                onBlur={onNotesSave}
-                rows={3}
-                placeholder="Add internal notes…"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-700 resize-none"
-              />
-              {notesStatus === 'saving' && <p className="text-xs text-gray-400 mt-1">Saving…</p>}
-              {notesStatus === 'saved' && <p className="text-xs text-green-600 mt-1">Saved ✓</p>}
-              {notesStatus === 'error' && (
-                <div className="flex items-center gap-2 mt-1">
-                  <p className="text-xs text-red-600">Failed to save</p>
-                  <button onClick={onNotesSave} className="text-xs text-green-700 underline">Retry</button>
-                </div>
-              )}
-            </div>
+            )}
           </div>
 
           {/* Actions */}
@@ -613,8 +556,6 @@ export default function AdminClient() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
   const [flashIds, setFlashIds] = useState<Set<string>>(new Set())
-  const [statusSaving, setStatusSaving] = useState<Record<string, boolean>>({})
-  const [statusSaved, setStatusSaved] = useState<Record<string, boolean>>({})
   const [notesDraft, setNotesDraft] = useState<Record<string, string>>({})
   const [notesStatus, setNotesStatus] = useState<Record<string, 'saving' | 'saved' | 'error' | null>>({})
 
@@ -704,10 +645,7 @@ export default function AdminClient() {
   const filtered = useMemo(() => {
     let list = submissions
     if (activeFilter !== 'all') {
-      if (activeFilter.startsWith('status:')) {
-        const s = activeFilter.slice(7)
-        list = list.filter(sub => sub.status === s)
-      } else if (activeFilter.startsWith('source:')) {
+      if (activeFilter.startsWith('source:')) {
         const s = activeFilter.slice(7)
         list = list.filter(sub => sub.source === s)
       } else if (activeFilter === 'flagged') {
@@ -729,7 +667,6 @@ export default function AdminClient() {
 
   const stats = useMemo(() => ({
     total: submissions.length,
-    pending: submissions.filter(s => s.status === 'pending').length,
     flagged: submissions.filter(s => (s.ai_result?.flags ?? []).some(f => f.severity === 'stop')).length,
     operator: submissions.filter(s => s.source === 'operator').length,
   }), [submissions])
@@ -765,27 +702,6 @@ export default function AdminClient() {
       setLoginError('Connection error — try again')
     } finally {
       setLoginLoading(false)
-    }
-  }
-
-  async function handleStatusChange(id: string, status: string) {
-    setStatusSaving(prev => ({ ...prev, [id]: true }))
-    try {
-      const res = await fetch(`/api/submissions/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      })
-      if (res.ok) {
-        const updated = await res.json() as TreeSubmission
-        setSubmissions(prev => prev.map(s => s.id === id ? updated : s))
-        setStatusSaved(prev => ({ ...prev, [id]: true }))
-        setTimeout(() => setStatusSaved(prev => ({ ...prev, [id]: false })), 1500)
-      } else {
-        setStatusSaved(prev => ({ ...prev, [id]: false }))
-      }
-    } finally {
-      setStatusSaving(prev => ({ ...prev, [id]: false }))
     }
   }
 
@@ -949,10 +865,9 @@ export default function AdminClient() {
 
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-5">
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             { label: 'Total', value: stats.total, color: 'text-green-900' },
-            { label: 'Pending', value: stats.pending, color: 'text-gray-700' },
             { label: 'Stop Flags', value: stats.flagged, color: 'text-red-600' },
             { label: 'Operator', value: stats.operator, color: 'text-indigo-700' },
           ].map(({ label, value, color }) => (
@@ -1058,12 +973,9 @@ export default function AdminClient() {
                     job={sub.job}
                     expanded={expandedId === sub.id}
                     flashing={flashIds.has(sub.id)}
-                    statusSaving={!!statusSaving[sub.id]}
-                    statusSaved={!!statusSaved[sub.id]}
                     notesStatus={notesStatus[sub.id] ?? null}
                     notesDraft={notesDraft[sub.id] ?? sub.internal_notes ?? ''}
                     onToggle={() => setExpandedId(prev => prev === sub.id ? null : sub.id)}
-                    onStatusChange={status => handleStatusChange(sub.id, status)}
                     onNotesDraftChange={val => setNotesDraft(prev => ({ ...prev, [sub.id]: val }))}
                     onNotesSave={() => handleNotesSave(sub.id)}
                     onPhotoClick={url => setLightboxUrl(url)}
