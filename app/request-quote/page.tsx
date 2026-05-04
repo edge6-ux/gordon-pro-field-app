@@ -6,7 +6,10 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { v4 as uuidv4 } from 'uuid'
 import imageCompression from 'browser-image-compression'
-import { Check, X, Camera, CheckCircle, Loader2, ArrowLeft, Copy } from 'lucide-react'
+import {
+  Check, X, Camera, CheckCircle, Loader2, ArrowLeft, Copy,
+  TreePine, Scissors, Circle, Zap, Layers, HelpCircle, PenLine,
+} from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,6 +26,18 @@ type PhotoItem = {
 
 const MAX_PHOTOS = 5
 const MAX_SIZE_BYTES = 10 * 1024 * 1024
+
+// ─── Services ─────────────────────────────────────────────────────────────────
+
+const SERVICES = [
+  { id: 'Tree Removal',             Icon: TreePine,   label: 'Tree Removal',             desc: 'Remove a tree from your property' },
+  { id: 'Tree Trimming & Pruning',  Icon: Scissors,   label: 'Tree Trimming & Pruning',  desc: "Shape, thin, or reduce a tree's canopy" },
+  { id: 'Stump Grinding',           Icon: Circle,     label: 'Stump Grinding',           desc: 'Remove a stump left from a previous removal' },
+  { id: 'Storm Damage / Emergency', Icon: Zap,        label: 'Storm Damage / Emergency', desc: 'Urgent help after storm damage or a fallen tree' },
+  { id: 'Land Clearing',            Icon: Layers,     label: 'Land Clearing',            desc: 'Clear trees and brush from a larger area' },
+  { id: 'Not Sure — I Need Advice', Icon: HelpCircle, label: 'Not Sure — I Need Advice', desc: "Not sure what I need — I'd like a recommendation" },
+  { id: 'Other',                    Icon: PenLine,    label: 'Other',                    desc: "Something not listed — I'll describe it below" },
+] as const
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -113,6 +128,53 @@ function Pill({ label, selected, onSelect }: { label: string; selected: boolean;
       ].join(' ')}
     >
       {label}
+    </button>
+  )
+}
+
+// ─── Service Card ─────────────────────────────────────────────────────────────
+
+function ServiceCard({
+  service,
+  selected,
+  onSelect,
+}: {
+  service: (typeof SERVICES)[number]
+  selected: boolean
+  onSelect: () => void
+}) {
+  const { Icon, label, desc } = service
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={[
+        'w-full flex items-center gap-4 p-4 rounded-2xl text-left transition-all duration-150',
+        selected
+          ? 'border-2 border-[#1C3A2B] bg-[#F0F7F3]'
+          : 'border border-[#E5E7EB] bg-white hover:border-gray-400',
+      ].join(' ')}
+    >
+      <div
+        className="flex items-center justify-center rounded-full shrink-0 transition-colors duration-150"
+        style={{ width: 48, height: 48, background: selected ? '#1C3A2B' : '#EAF3DE' }}
+      >
+        <Icon size={22} color={selected ? '#fff' : '#1C3A2B'} />
+      </div>
+      <div className="min-w-0">
+        <p className={`font-body font-bold text-[15px] ${selected ? 'text-[#1C3A2B]' : 'text-[#4A4A4A]'}`}>
+          {label}
+        </p>
+        <p className="font-body text-[13px] text-gray-400 leading-snug mt-0.5">{desc}</p>
+      </div>
+      <div
+        className={[
+          'ml-auto shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-150',
+          selected ? 'bg-[#1C3A2B] border-[#1C3A2B]' : 'border-gray-300',
+        ].join(' ')}
+      >
+        {selected && <Check size={10} className="text-white" strokeWidth={3} />}
+      </div>
     </button>
   )
 }
@@ -236,7 +298,8 @@ export default function RequestQuotePage() {
   const [customerPhone,       setCustomerPhone]       = useState('')
   const [customerEmail,       setCustomerEmail]       = useState('')
   const [propertyAddress,     setPropertyAddress]     = useState('')
-  const [serviceDescription,  setServiceDescription]  = useState('')
+  const [serviceTypes,        setServiceTypes]        = useState<string[]>([])
+  const [otherDescription,    setOtherDescription]    = useState('')
   const [preferredDate,       setPreferredDate]       = useState('')
   const [preferredTimeframe,  setPreferredTimeframe]  = useState('flexible')
 
@@ -335,7 +398,8 @@ export default function RequestQuotePage() {
           customerPhone,
           customerEmail:      customerEmail.trim() || undefined,
           propertyAddress:    propertyAddress.trim() || undefined,
-          serviceDescription: serviceDescription.trim() || undefined,
+          serviceType:        serviceTypes.filter(s => s !== 'Other').join(', ') || undefined,
+          serviceDescription: serviceTypes.includes('Other') ? otherDescription.trim() || undefined : undefined,
           preferredDate:      preferredDate || undefined,
           preferredTimeframe,
           photoUrls,
@@ -434,20 +498,38 @@ export default function RequestQuotePage() {
           <FieldHelper>Optional — helps us prepare before we visit</FieldHelper>
         </div>
 
-        {/* Service description */}
+        {/* Services */}
         <div>
           <FieldLabel>What do you need done?</FieldLabel>
-          <textarea
-            value={serviceDescription}
-            onChange={(e) => setServiceDescription(e.target.value)}
-            rows={3}
-            className={[
-              'w-full rounded-lg border border-gray-300 px-4 py-3 text-[16px] text-[#4A4A4A] bg-white resize-none',
-              'outline-none transition-colors duration-150',
-              'focus:border-[#1C3A2B] focus:ring-2 focus:ring-[#1C3A2B]/20',
-            ].join(' ')}
-            placeholder="e.g. Large oak tree needs to be removed — it leans toward the fence…"
-          />
+          <p className="font-body text-[12px] text-gray-400 mb-3">Select all that apply</p>
+          <div className="flex flex-col gap-3">
+            {SERVICES.map((s) => (
+              <ServiceCard
+                key={s.id}
+                service={s}
+                selected={serviceTypes.includes(s.id)}
+                onSelect={() =>
+                  setServiceTypes((prev) =>
+                    prev.includes(s.id) ? prev.filter((x) => x !== s.id) : [...prev, s.id]
+                  )
+                }
+              />
+            ))}
+          </div>
+          {serviceTypes.includes('Other') && (
+            <textarea
+              value={otherDescription}
+              onChange={(e) => setOtherDescription(e.target.value)}
+              rows={3}
+              className={[
+                'mt-3 w-full rounded-lg border border-gray-300 px-4 py-3 text-[16px] text-[#4A4A4A] bg-white resize-none',
+                'outline-none transition-colors duration-150',
+                'focus:border-[#1C3A2B] focus:ring-2 focus:ring-[#1C3A2B]/20',
+              ].join(' ')}
+              placeholder="Please describe what you need…"
+              autoFocus
+            />
+          )}
         </div>
 
         {/* Preferred Date */}
