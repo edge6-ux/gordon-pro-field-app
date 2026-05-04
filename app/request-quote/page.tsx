@@ -390,7 +390,7 @@ export default function RequestQuotePage() {
         .filter((p) => p.phase === 'done' && p.url)
         .map((p) => p.url as string)
 
-      const res = await fetch('https://gordon-admin.vercel.app/api/public/request-quote', {
+      const res = await fetch('/api/request-quote', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

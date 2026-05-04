@@ -137,7 +137,7 @@ export default function QuoteRequestSection({
     setSubmitting(true)
     setErrors({})
     try {
-      const res = await fetch('https://gordon-admin.vercel.app/api/public/request-quote', {
+      const res = await fetch('/api/request-quote', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
