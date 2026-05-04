@@ -148,6 +148,7 @@ export async function POST(request: NextRequest) {
       tree_count:              treeCount || '',
       urgency:                 urgency || '',
       best_time_to_call:       bestTimeToCall || '',
+      customer_result:         null,
     }).catch(console.error)
 
     // Email 1 — submission confirmed

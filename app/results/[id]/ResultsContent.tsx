@@ -920,7 +920,7 @@ export default function ResultsContent({
               : <p className="text-center font-body text-[13px] text-gray-400 py-2">Job record not found. Contact the office.</p>
           )}
           {submission.source === 'customer' && <CustomerCTA />}
-          {result && (
+          {result && result.generated_at && (
             <p className="text-center text-xs text-gray-300 print:text-gray-400">
               AI analysis generated {new Date(result.generated_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
             </p>

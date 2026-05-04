@@ -179,6 +179,16 @@ export default function HomePage() {
             </div>
           </Link>
         </div>
+
+        <p className="font-body text-[14px] text-gray-400 text-center mt-5 px-4">
+          Don&apos;t need an assessment?{' '}
+          <Link
+            href="/request-quote"
+            className="text-[#1C3A2B] font-semibold underline underline-offset-2 hover:text-[#2D5A40] transition-colors"
+          >
+            Request a quote directly →
+          </Link>
+        </p>
       </div>
 
       {/* ── HOW IT WORKS ── */}

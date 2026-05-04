@@ -24,7 +24,12 @@
       "Bash(git commit -m 'Fix test-email endpoint FROM address *)",
       "Bash(git commit -m 'Add logo to email header *)",
       "Bash(git commit -m 'Add customer results page and CopyButton component *)",
-      "Bash(git commit -m 'Redirect customer submissions to /results/customer/[id] *)"
+      "Bash(git commit -m 'Redirect customer submissions to /results/customer/[id] *)",
+      "Bash(git stash *)",
+      "Bash(git diff *)",
+      "Bash(git commit *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\edger\\\\OneDrive\\\\Documents\\\\gordon-pro-field-app\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)"
     ]
   }
 }

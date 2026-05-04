@@ -19,11 +19,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Submission not found' }, { status: 404 })
     }
 
-    const aiResult = await analyzeTree(submission.photo_urls ?? [], submission)
+    const { operatorResult, customerResult } = await analyzeTree(
+      submission.photo_urls ?? [],
+      submission
+    )
 
     const { error: updateError } = await supabase
       .from('submissions')
-      .update({ ai_result: aiResult, status: 'reviewed' })
+      .update({
+        ai_result: operatorResult,
+        customer_result: customerResult,
+        status: 'reviewed',
+      })
       .eq('id', submissionId)
 
     if (updateError) {
@@ -31,7 +38,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to save AI result' }, { status: 500 })
     }
 
-    return NextResponse.json({ aiResult })
+    return NextResponse.json({ success: true, operatorResult, customerResult })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('[analyze] Error:', msg)

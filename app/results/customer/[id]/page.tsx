@@ -4,66 +4,13 @@ import { redirect } from 'next/navigation'
 import Image from 'next/image'
 import { CheckCircle, AlertTriangle, Info, Zap, Scissors, Shield, CloudLightning, TreePine, ArrowRight, Check, Sparkles, Camera } from 'lucide-react'
 import { supabaseAdmin } from '@/lib/supabase'
-import type { TreeSubmission, AIResult, Flag, Job } from '@/lib/types'
+import type { TreeSubmission, CustomerResult, CustomerFinding, Job } from '@/lib/types'
 import CopyButton from '@/components/results/CopyButton'
+import QuoteRequestSection from '@/components/quote/QuoteRequestSection'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type SubmissionRow = TreeSubmission & { reference_code?: string }
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function firstTwoSentences(text: string): string {
-  const matches = text.match(/[^.!?]+[.!?]+(\s|$)/g)
-  if (!matches || matches.length === 0) return text
-  return matches.slice(0, 2).join('').trim()
-}
-
-// ─── Flag rewriter ────────────────────────────────────────────────────────────
-
-function rewriteFlagForHomeowner(message: string): string {
-  return message
-    .replace(/\bspecimen\b/gi, 'tree')
-    .replace(/\broot\s*plate\b/gi, 'base of the tree')
-    .replace(/\bcanopy\s*loading\b/gi, 'branch weight')
-    .replace(/\bdynamic\s*load(ing)?\b/gi, 'movement under wind')
-    .replace(/\brigging\s*assessment\b/gi, 'careful planning')
-    .replace(/\brigging\s*required\b/gi, 'careful planning required')
-    .replace(/\bdeadman\s*anchors?\b/gi, 'ground anchors')
-    .replace(/\bcrew\s*protocols?\b/gi, 'extra care by our team')
-    .replace(/\bcutting\s*operations?\b/gi, 'the work')
-    .replace(/\basymmetric(al)?\b/gi, 'unevenly weighted')
-    .replace(/\bchipper\b/gi, 'equipment')
-    .replace(/\belevated\s*work\b/gi, 'working at height')
-    .replace(/\bclimbing\b/gi, 'accessing the tree')
-    .replace(/\brigging\b/gi, 'careful lowering')
-    .replace(/\bcrew\b/gi, 'our team')
-    .replace(/\boperations?\b/gi, 'work')
-}
-
-// ─── Recommendation text ──────────────────────────────────────────────────────
-
-function getRecommendationText(serviceType: string | null, hasStopFlag: boolean): string {
-  if (serviceType === 'Tree Removal') {
-    return hasStopFlag
-      ? "Based on what we can see, this tree should be assessed in person as soon as possible. Our team will prioritize your call and can typically schedule urgent removals within 48 hours."
-      : "Tree removal is one of our most common services. We'll come out, assess the tree in person, and give you a firm quote before any work begins — no surprises."
-  }
-  const texts: Record<string, string> = {
-    'Tree Trimming & Pruning':
-      "Regular trimming keeps your trees healthy, safe, and looking their best. We'll assess in person and recommend the right approach — whether that's crown reduction, deadwood removal, or a light shape-up.",
-    'Stump Grinding':
-      "Stump grinding is a fast, clean process that removes the stump below ground level. We'll confirm the size and accessibility on our call and get you scheduled quickly.",
-    'Storm Damage / Emergency':
-      "Storm damage needs quick attention to keep your property safe. We prioritize emergency calls and aim to be on site the same day when possible. Expect a call from us very shortly.",
-    'Land Clearing':
-      "Land clearing projects vary in scope. We'll get a full picture on our call and can typically provide a same-day quote for most residential clearing jobs.",
-    'Not Sure — I Need Advice':
-      "No problem — that's exactly what we're here for. Our team will walk you through your options on the call and recommend the right service for your situation.",
-  }
-  return (serviceType && texts[serviceType])
-    ?? "Our team will review your request and reach out shortly to discuss the best approach for your property."
-}
 
 // ─── Status pipeline data ─────────────────────────────────────────────────────
 
@@ -84,9 +31,9 @@ const STATUS_DESCRIPTIONS: Record<string, string> = {
 }
 
 function getCallTimeframe(urgency: string): string {
-  if (urgency === 'Emergency') return 'within the hour'
-  if (urgency === 'Soon') return 'within a few hours'
-  if (urgency === 'Routine') return 'within 1 business day'
+  if (urgency === 'emergency') return 'within the hour'
+  if (urgency === 'soon') return 'within a few hours'
+  if (urgency === 'routine') return 'within 1 business day'
   return 'shortly'
 }
 
@@ -125,28 +72,19 @@ export default async function CustomerResultsPage({
   const job = jobData as Job | null
 
   const submission = data as SubmissionRow
-  const aiResult   = submission.ai_result as AIResult | null
-  const hasAI      = aiResult !== null && aiResult !== undefined
+  const customerResult = submission.customer_result as CustomerResult | null
+  const hasAI = customerResult !== null && customerResult !== undefined
 
   const referenceCode =
     job?.reference_code ?? submission.reference_code ?? submission.id.slice(0, 8).toUpperCase()
 
-  const blurb =
-    hasAI && aiResult?.species_description
-      ? firstTwoSentences(aiResult.species_description)
-      : ''
-
-  const hasStopFlag = aiResult?.flags?.some(f => f.severity === 'stop') ?? false
-
-  const FLAG_ORDER: Record<Flag['severity'], number> = { stop: 0, caution: 1, info: 2 }
-  const sortedFlags: Flag[] = hasAI && aiResult?.flags
-    ? [...aiResult.flags]
-        .sort((a, b) => FLAG_ORDER[a.severity] - FLAG_ORDER[b.severity])
-        .slice(0, 2)
+  const findings: CustomerFinding[] = hasAI && customerResult?.findings
+    ? customerResult.findings.slice(0, 2)
     : []
 
+  const urgency = customerResult?.urgency ?? ''
+
   const isComplete = job?.status === 'complete'
-  // If no job exists yet, show the bar at step 0 (Received)
   const stepIndex  = job ? STATUS_STEPS.findIndex(s => s.key === job.status) : 0
 
   return (
@@ -317,7 +255,7 @@ export default async function CustomerResultsPage({
         )}
 
         {/* ─── SECTION 2 — YOUR TREE ─── */}
-        {hasAI && aiResult && (
+        {hasAI && customerResult && (
           <div
             className="bg-white rounded-2xl p-6"
             style={{
@@ -332,11 +270,11 @@ export default async function CustomerResultsPage({
               Identified Species
             </p>
             <h2 className="font-heading text-[24px] text-[#1A1A1A] mb-3">
-              {aiResult.species_name}
+              {customerResult.species_name}
             </h2>
-            {blurb && (
+            {customerResult.species_blurb && (
               <p className="font-body text-[14px] text-[#4A4A4A] leading-[1.7]">
-                {blurb}
+                {customerResult.species_blurb}
               </p>
             )}
 
@@ -364,7 +302,7 @@ export default async function CustomerResultsPage({
         )}
 
         {/* ─── SECTION 3 — WHAT WE FOUND ─── */}
-        {hasAI && sortedFlags.length > 0 && (
+        {hasAI && findings.length > 0 && (
           <div
             className="bg-white rounded-2xl p-6"
             style={{ border: '1px solid #E5E7EB', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
@@ -375,17 +313,17 @@ export default async function CustomerResultsPage({
             >
               What We Found
             </p>
-            {sortedFlags.map((flag, i) => {
-              const isLast = i === sortedFlags.length - 1
+            {findings.map((finding, i) => {
+              const isLast = i === findings.length - 1
               const iconBg =
-                flag.severity === 'stop' ? '#FCEBEB' :
-                flag.severity === 'caution' ? '#FAEEDA' : '#E6F1FB'
+                finding.severity === 'high'   ? '#FCEBEB' :
+                finding.severity === 'medium' ? '#FAEEDA' : '#E6F1FB'
               const iconColor =
-                flag.severity === 'stop' ? '#E24B4A' :
-                flag.severity === 'caution' ? '#C8922A' : '#185FA5'
+                finding.severity === 'high'   ? '#E24B4A' :
+                finding.severity === 'medium' ? '#C8922A' : '#185FA5'
               const severityLabel =
-                flag.severity === 'stop' ? 'Needs Attention' :
-                flag.severity === 'caution' ? 'Worth Knowing' : 'Good to Know'
+                finding.severity === 'high'   ? 'Needs Attention' :
+                finding.severity === 'medium' ? 'Worth Knowing'   : 'Good to Know'
               return (
                 <div
                   key={i}
@@ -395,7 +333,7 @@ export default async function CustomerResultsPage({
                     className="shrink-0 flex items-center justify-center rounded-full"
                     style={{ width: 40, height: 40, background: iconBg }}
                   >
-                    {flag.severity === 'info'
+                    {finding.severity === 'low'
                       ? <Info size={18} color={iconColor} />
                       : <AlertTriangle size={18} color={iconColor} />
                     }
@@ -408,7 +346,7 @@ export default async function CustomerResultsPage({
                       className="font-body text-[14px] text-[#4A4A4A] mt-1"
                       style={{ lineHeight: 1.6 }}
                     >
-                      {rewriteFlagForHomeowner(flag.message)}
+                      {finding.plain_english}
                     </p>
                   </div>
                 </div>
@@ -432,7 +370,7 @@ export default async function CustomerResultsPage({
           >
             Our Recommendation
           </p>
-          {submission.urgency === 'Emergency' && (
+          {urgency === 'emergency' && (
             <div
               className="flex items-center gap-2 px-3 py-2 rounded-lg mt-2 mb-3"
               style={{ background: '#FCEBEB' }}
@@ -444,7 +382,8 @@ export default async function CustomerResultsPage({
             </div>
           )}
           <p className="font-body text-[15px] text-[#4A4A4A]" style={{ lineHeight: 1.7 }}>
-            {getRecommendationText(submission.service_type || null, hasStopFlag)}
+            {customerResult?.recommendation
+              ?? "Our team will review your request and reach out shortly to discuss the best approach for your property."}
           </p>
         </div>
 
@@ -528,7 +467,7 @@ export default async function CustomerResultsPage({
               {
                 n: 2,
                 title: 'We call you',
-                desc: `Expect a call ${getCallTimeframe(submission.urgency)} to discuss the job and answer any questions.`,
+                desc: `Expect a call ${getCallTimeframe(urgency)} to discuss the job and answer any questions.`,
               },
               {
                 n: 3,
@@ -591,6 +530,21 @@ export default async function CustomerResultsPage({
               Add Photos Now
             </a>
           </div>
+        )}
+
+        {/* ─── QUOTE REQUEST ─── */}
+        {hasAI && !isComplete && (
+          <QuoteRequestSection
+            customerName={submission.customer_name}
+            customerPhone={submission.customer_phone}
+            customerEmail={submission.customer_email}
+            propertyAddress={submission.property_address}
+            photoUrls={submission.photo_urls}
+            aiResult={submission.ai_result}
+            treeCount={submission.tree_count}
+            urgency={submission.urgency}
+            serviceType={submission.service_type}
+          />
         )}
 
         {/* ─── SECTION 8 — CONTACT CARD ─── */}

@@ -1,69 +1,73 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { ImageBlockParam, URLImageSource } from '@anthropic-ai/sdk/resources/messages/messages'
-import type { AIResult, TreeSubmission } from './types'
+import type { AIResult, CustomerResult, TreeSubmission } from './types'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 })
 
 function buildSystemPrompt(): string {
-  return `You are an expert arborist assistant for Gordon Pro Tree Service, a professional tree care company.
-Your role is to analyze photos of trees submitted by customers and provide actionable intelligence for the Gordon Pro crew before they arrive on site.
+  return `You are an expert arborist AI assistant for Gordon Pro Tree Service, a professional tree service company in North Georgia.
 
-Always respond with valid JSON matching the AIResult schema exactly. Be specific, practical, and safety-focused.
-Severity levels for flags: "info" (notable but routine), "caution" (requires extra care), "stop" (do not proceed without specialist assessment).
+You analyze tree photos and generate TWO assessments in a single JSON response:
 
-IMPORTANT: If the photos do not clearly show a tree (e.g. blurry, wrong subject, no vegetation visible), you must still return valid JSON but set "no_tree_detected": true and leave the other fields as empty strings/arrays. Do not attempt to identify a species when no tree is present.
+1. OPERATOR assessment — technical, detailed, written for experienced tree service crews. Include species confidence, key characteristics, site considerations, hazard flags with severity, and specific crew tips.
+
+2. CUSTOMER assessment — plain English, homeowner-friendly. No technical jargon, no crew terminology. Focus on what the homeowner needs to know: what tree they have, whether it is safe, what we recommend, and why they should act.
+
+You must respond with valid JSON only. No markdown, no explanation, no text outside the JSON object.
+
+IMPORTANT: If the photos do not clearly show a tree (e.g. blurry, wrong subject, no vegetation visible), set operator.no_tree_detected to true and leave other operator fields as empty strings/arrays. When no_tree_detected is true, the customer object should still be returned but with safety_status "healthy" and urgency "none".
 
 PHOTO QUALITY ASSESSMENT:
-Before analyzing, assess whether the photos are usable. If ALL submitted photos suffer from any of the following conditions, set species_description to start with "[QUALITY_ISSUE]: " followed by the specific reason:
-- Too blurry or out of focus to identify species features
-- Too dark or overexposed to see tree details
-- Tree occupies less than 20% of the frame (too far away)
-- Only an isolated detail visible (just bark, just leaves) with no full-tree context
-
-When quality is insufficient, return:
-{
-  "no_tree_detected": false,
-  "species_name": "Unable to analyze",
-  "species_confidence": "low",
-  "species_description": "[QUALITY_ISSUE]: {specific reason}",
-  "key_characteristics": [],
-  "site_considerations": [],
-  "crew_tips": ["Retake photos before scheduling this job."],
-  "flags": [{"severity": "caution", "message": "Photo quality insufficient for automated analysis. Clearer photos needed before crew dispatch."}],
-  "generated_at": "{timestamp}"
-}
-
-If one photo is poor but others are usable, analyze from the good photos and note which were unusable in the flags.`
+If ALL submitted photos are too blurry, too dark, too far away, or show only an isolated detail with no full-tree context, set operator.species_description to start with "[QUALITY_ISSUE]: " and include a caution flag in operator.flags.`
 }
 
 function buildUserPrompt(submission: Partial<TreeSubmission>): string {
-  return `Analyze the submitted tree photos and details. Return a JSON object with this exact structure:
+  return `Analyze the tree(s) in these photos and return a JSON object with exactly this structure:
+
 {
-  "no_tree_detected": false,
-  "species_name": "Common name (Scientific name)",
-  "species_confidence": "high" | "medium" | "low",
-  "species_description": "2-3 sentence description of this species relevant to tree work",
-  "key_characteristics": ["characteristic 1", "characteristic 2", ...],
-  "site_considerations": ["consideration 1", "consideration 2", ...],
-  "crew_tips": ["tip 1", "tip 2", ...],
-  "flags": [{ "severity": "info"|"caution"|"stop", "message": "flag message" }],
-  "generated_at": "${new Date().toISOString()}"
+  "operator": {
+    "species_name": "string",
+    "species_confidence": "high" | "medium" | "low",
+    "species_description": "string",
+    "no_tree_detected": false,
+    "key_characteristics": ["string"],
+    "site_considerations": ["string"],
+    "flags": [
+      {
+        "severity": "stop" | "caution" | "info",
+        "message": "string"
+      }
+    ],
+    "crew_tips": ["string"]
+  },
+  "customer": {
+    "species_name": "string",
+    "species_blurb": "string — 1-2 plain English sentences about this tree species. No Latin names. No technical terms. Written for a homeowner who knows nothing about trees.",
+    "safety_status": "attention_needed" | "monitor" | "healthy",
+    "safety_summary": "string — One plain English sentence summarizing the safety situation. Never say 'the tree is fine'. Always point toward a service.",
+    "findings": [
+      {
+        "severity": "high" | "medium" | "low",
+        "plain_english": "string — Rewrite any hazard flags in plain homeowner language. No crew terms. Max 2 sentences. Reassuring but honest."
+      }
+    ],
+    "recommendation": "string — What Gordon Pro recommends for this specific tree. Written for a homeowner. Always points toward a Gordon Pro service. Never a dead end.",
+    "recommended_service": "Tree Removal" | "Tree Trimming & Pruning" | "Stump Grinding" | "Storm Damage / Emergency" | "Land Clearing" | "Inspection & Maintenance",
+    "preventative_tips": ["string — short actionable tip written for a homeowner"],
+    "urgency": "emergency" | "soon" | "routine" | "none"
+  }
 }
 
-If no tree is visible in the photos, return:
-{
-  "no_tree_detected": true,
-  "species_name": "",
-  "species_confidence": "low",
-  "species_description": "",
-  "key_characteristics": [],
-  "site_considerations": [],
-  "crew_tips": [],
-  "flags": [],
-  "generated_at": "${new Date().toISOString()}"
-}
+Rules for the customer assessment:
+- Never use words like: rigging, climbing, canopy loading, root plate, dynamic load, crew, cutting operations, asymmetric, deadman anchors, chipper, elevated work, specimen, DBH, cambium
+- Always recommend a service — even healthy trees benefit from trimming and inspection
+- Safety status "healthy" still gets a preventative recommendation
+- Maximum 2 findings in the customer output
+- Findings rewritten completely in homeowner language
+- urgency "emergency" only for stop flags or immediate hazards
+- urgency "none" only if tree is genuinely low risk with no flags
 
 Customer-reported details:
 - Tree height: ${submission.tree_height ?? 'not specified'}
@@ -72,8 +76,7 @@ Customer-reported details:
 - Proximity to structures: ${submission.proximity_to_structures ?? 'none'}
 - Additional notes: ${submission.additional_notes || 'none'}
 
-Provide 3-5 key_characteristics, 2-4 site_considerations, 3-5 crew_tips, and any relevant flags.
-Flag any structural concerns, disease signs, hazardous conditions, or proximity risks.`
+Provide 3-5 key_characteristics, 2-4 site_considerations, 3-5 crew_tips, and any relevant flags for the operator. Provide 0-2 findings for the customer.`
 }
 
 function buildImageBlock(url: string): ImageBlockParam {
@@ -84,12 +87,12 @@ function buildImageBlock(url: string): ImageBlockParam {
 export async function analyzeTree(
   photoUrls: string[],
   submission: Partial<TreeSubmission>
-): Promise<AIResult> {
+): Promise<{ operatorResult: AIResult; customerResult: CustomerResult | null }> {
   const imageBlocks: ImageBlockParam[] = photoUrls.map(buildImageBlock)
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 2000,
+    max_tokens: 3000,
     system: buildSystemPrompt(),
     messages: [
       {
@@ -115,5 +118,14 @@ export async function analyzeTree(
     throw new Error('Could not extract JSON from Claude response')
   }
 
-  return JSON.parse(jsonMatch[0]) as AIResult
+  const parsed = JSON.parse(jsonMatch[0]) as {
+    operator: AIResult
+    customer: CustomerResult
+  }
+
+  const operatorResult: AIResult = parsed.operator
+  const customerResult: CustomerResult | null =
+    operatorResult.no_tree_detected ? null : parsed.customer
+
+  return { operatorResult, customerResult }
 }

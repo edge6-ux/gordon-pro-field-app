@@ -4,11 +4,10 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
-import { Menu, X, ClipboardList, Search, Phone } from 'lucide-react'
+import { Menu, X, ClipboardList, Phone } from 'lucide-react'
 
 const NAV_LINKS = [
   { label: 'Request Assessment', href: '/submit',  icon: ClipboardList },
-  { label: 'Track Your Job',     href: '/track',   icon: Search },
   { label: 'Call Us',            href: 'tel:+17702716072', icon: Phone, external: true },
 ]
 

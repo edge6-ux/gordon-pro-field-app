@@ -12,6 +12,7 @@ export type TreeSubmission = {
   additional_notes: string
   photo_urls: string[]
   ai_result: AIResult | null
+  customer_result: CustomerResult | null
   status: 'pending' | 'reviewed' | 'quoted' | 'scheduled' | 'completed'
   source: 'customer' | 'operator'
   internal_notes?: string
@@ -30,7 +31,24 @@ export type AIResult = {
   site_considerations: string[]
   crew_tips: string[]
   flags: Flag[]
-  generated_at: string
+  generated_at?: string
+}
+
+export type CustomerFinding = {
+  severity: 'high' | 'medium' | 'low'
+  plain_english: string
+}
+
+export type CustomerResult = {
+  species_name: string
+  species_blurb: string
+  safety_status: 'attention_needed' | 'monitor' | 'healthy'
+  safety_summary: string
+  findings: CustomerFinding[]
+  recommendation: string
+  recommended_service: string
+  preventative_tips: string[]
+  urgency: 'emergency' | 'soon' | 'routine' | 'none'
 }
 
 export type Flag = {
