@@ -6,7 +6,6 @@ import { CheckCircle, AlertTriangle, Info, Zap, Scissors, Shield, CloudLightning
 import { supabaseAdmin } from '@/lib/supabase'
 import type { TreeSubmission, CustomerResult, CustomerFinding, Job } from '@/lib/types'
 import CopyButton from '@/components/results/CopyButton'
-import QuoteRequestSection from '@/components/quote/QuoteRequestSection'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -530,21 +529,6 @@ export default async function CustomerResultsPage({
               Add Photos Now
             </a>
           </div>
-        )}
-
-        {/* ─── QUOTE REQUEST ─── */}
-        {hasAI && !isComplete && (
-          <QuoteRequestSection
-            customerName={submission.customer_name}
-            customerPhone={submission.customer_phone}
-            customerEmail={submission.customer_email}
-            propertyAddress={submission.property_address}
-            photoUrls={submission.photo_urls}
-            aiResult={submission.ai_result}
-            treeCount={submission.tree_count}
-            urgency={submission.urgency}
-            serviceType={submission.service_type}
-          />
         )}
 
         {/* ─── SECTION 8 — CONTACT CARD ─── */}
